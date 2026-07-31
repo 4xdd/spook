@@ -1,0 +1,429 @@
+@import "tailwindcss";
+
+/*
+ * Semantic tokens. Dark is the default; light mode mirrors it. Both can be
+ * forced with data-theme on <html> for the in-app switch.
+ */
+:root {
+  --canvas: #000000;
+  --surface: #131315;
+  --surface-raised: #1c1c1f;
+  --chrome: 18 18 20;
+  --chrome-alpha: 0.72;
+
+  --content: #ffffff;
+  --content-secondary: rgb(255 255 255 / 0.62);
+  --content-tertiary: rgb(255 255 255 / 0.38);
+
+  --separator: rgb(255 255 255 / 0.09);
+  --fill: rgb(255 255 255 / 0.07);
+  --fill-strong: rgb(255 255 255 / 0.14);
+
+  --accent: #fa233b;
+  --accent-content: #ffffff;
+
+  --shadow-art: 0 18px 40px -12px rgb(0 0 0 / 0.65);
+  --shadow-pop: 0 12px 32px -8px rgb(0 0 0 / 0.5);
+
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --canvas: #ffffff;
+    --surface: #f7f7f8;
+    --surface-raised: #ffffff;
+    --chrome: 250 250 251;
+    --chrome-alpha: 0.72;
+
+    --content: #000000;
+    --content-secondary: rgb(0 0 0 / 0.58);
+    --content-tertiary: rgb(0 0 0 / 0.36);
+
+    --separator: rgb(0 0 0 / 0.11);
+    --fill: rgb(0 0 0 / 0.05);
+    --fill-strong: rgb(0 0 0 / 0.1);
+
+    --accent-content: #ffffff;
+
+    --shadow-art: 0 18px 40px -14px rgb(0 0 0 / 0.28);
+    --shadow-pop: 0 12px 32px -10px rgb(0 0 0 / 0.2);
+
+    color-scheme: light;
+  }
+}
+
+:root[data-theme="light"] {
+  --canvas: #ffffff;
+  --surface: #f7f7f8;
+  --surface-raised: #ffffff;
+  --chrome: 250 250 251;
+  --chrome-alpha: 0.72;
+
+  --content: #000000;
+  --content-secondary: rgb(0 0 0 / 0.58);
+  --content-tertiary: rgb(0 0 0 / 0.36);
+
+  --separator: rgb(0 0 0 / 0.11);
+  --fill: rgb(0 0 0 / 0.05);
+  --fill-strong: rgb(0 0 0 / 0.1);
+
+  --accent-content: #ffffff;
+
+  --shadow-art: 0 18px 40px -14px rgb(0 0 0 / 0.28);
+  --shadow-pop: 0 12px 32px -10px rgb(0 0 0 / 0.2);
+
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-raised: var(--surface-raised);
+
+  --color-content: var(--content);
+  --color-secondary: var(--content-secondary);
+  --color-tertiary: var(--content-tertiary);
+
+  --color-separator: var(--separator);
+  --color-fill: var(--fill);
+  --color-fill-strong: var(--fill-strong);
+
+  --color-accent: var(--accent);
+  --color-accent-content: var(--accent-content);
+
+  /* Neo-grotesque stack: real Helvetica where present, close clones elsewhere. */
+  --font-sans:
+    "Helvetica Neue", Helvetica, "Nimbus Sans", "Liberation Sans", Arial, sans-serif;
+
+  --shadow-art: var(--shadow-art);
+  --shadow-pop: var(--shadow-pop);
+}
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    overflow: hidden;
+    background: var(--canvas);
+    color: var(--content);
+    font-family: var(--font-sans);
+    /* Comfortable body leading; headings tighten it back up. */
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior: none;
+  }
+
+  #root {
+    transform-origin: top left;
+  }
+
+  /*
+   * Tracking is size specific: large text reads too loose at default spacing,
+   * small text too tight.
+   */
+  h1,
+  h2 {
+    letter-spacing: -0.022em;
+    line-height: 1.1;
+  }
+
+  h3,
+  h4 {
+    letter-spacing: -0.014em;
+    line-height: 1.2;
+  }
+
+  button {
+    font: inherit;
+    color: inherit;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--accent) 40%, transparent);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  input[type="search"]::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+  }
+}
+
+@layer components {
+  /*
+   * Translucent chrome. Content scrolls underneath rather than being clipped by
+   * an opaque bar, which is what gives the layered, material feel.
+   */
+  .material {
+    background: rgb(var(--chrome) / var(--chrome-alpha));
+    backdrop-filter: saturate(180%) blur(24px);
+    -webkit-backdrop-filter: saturate(180%) blur(24px);
+  }
+
+  /* A soft fade where scrolling content meets floating chrome, not a 1px rule. */
+  .scroll-edge {
+    mask-image: linear-gradient(to bottom, transparent 0, black 14px);
+  }
+
+  /* Both ends of a free-floating scroller dissolve instead of being cut off. */
+  .edge-fade-y {
+    mask-image: linear-gradient(to bottom, transparent 0, black 12%, black 88%, transparent 100%);
+  }
+
+  /*
+   * The lyric scroller only softens the last of the top edge: a song opens at
+   * the top of the pane, and a proportional fade there would swallow it.
+   */
+  .lyric-fade {
+    mask-image: linear-gradient(to bottom, transparent 0, black 1.25rem, black 82%, transparent 100%);
+  }
+
+  /*
+   * The scroller still clips vertically, but its box extends past the text
+   * column so a word's glow has room to bloom at either horizontal edge.
+   */
+  .lyrics-glow-bleed {
+    width: calc(100% + 3rem);
+    margin-inline: -1.5rem;
+    padding-inline: 1.5rem;
+  }
+
+  /* The two lines framing the live one trail off rather than being cropped. */
+  .lyric-peek-fade {
+    mask-image: linear-gradient(to bottom, transparent 0, black 30%, black 70%, transparent 100%);
+  }
+
+  /*
+   * Lets children size themselves against this box's height with cqh units.
+   * Percentages resolve against width, which is no use for fitting a square
+   * into a short box or for a gutter measured against a scroller.
+   */
+  .size-container {
+    container-type: size;
+  }
+
+  /* Word-level highlight needs a box of its own for the swell to have effect. */
+  .lyric-word {
+    display: inline-block;
+  }
+
+  /* Text shadow can bloom beyond the glyph box without a filtered rectangle. */
+  .lyric-word-current {
+    text-shadow: 0 0 10px color-mix(in oklab, var(--content) 40%, transparent);
+  }
+
+  /*
+   * A sustained note brightens without moving or scaling the glyphs. Keeping
+   * geometry fixed avoids the subpixel shimmer visible on very long holds.
+   */
+  @keyframes lyric-hold {
+    from {
+      text-shadow: 0 0 10px color-mix(in oklab, var(--content) 40%, transparent);
+    }
+    to {
+      text-shadow: 0 0 22px color-mix(in oklab, var(--content) 85%, transparent);
+    }
+  }
+
+  .lyric-word-held {
+    /* The duration is set per word, from how long that word is held. */
+    animation: lyric-hold 1s cubic-bezier(0.32, 0, 0.2, 1) forwards;
+  }
+
+  /*
+   * The wash drifts on `translate` so the beat is free to own `scale` without
+   * the two of them fighting over one transform.
+   */
+  @keyframes blob-drift {
+    0% {
+      translate: 0% 0%;
+    }
+    33% {
+      translate: 5% -4%;
+    }
+    66% {
+      translate: -4% 3%;
+    }
+    100% {
+      translate: 0% 0%;
+    }
+  }
+
+  /* The drift already earns each blob a compositor layer for the beat to scale. */
+  .blob {
+    animation: blob-drift 30s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lyric-word {
+      transition: none !important;
+    }
+
+    .lyric-word-held,
+    .blob {
+      animation: none;
+    }
+  }
+
+  /*
+   * Now Playing has two shapes: cover first, with the words peeking underneath,
+   * and lyrics first, where the art steps aside to the left. Both are the same
+   * three boxes in the same order, so switching is something the children can
+   * animate between rather than a remount.
+   */
+  .np-stage {
+    display: grid;
+    gap: 1.5rem;
+    justify-items: center;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "art"
+      "controls";
+  }
+
+  .np-stage[data-lyrics="false"][data-peek="true"] {
+    grid-template-rows: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "art"
+      "peek"
+      "controls";
+    row-gap: 0.75rem;
+  }
+
+  /*
+   * The scaled 1080p composition has room to optically centre the peek
+   * between the cover and controls without giving it an elastic layout row.
+   */
+  @media (min-width: 120.001rem) and (min-height: 67.501rem) {
+    .np-stage[data-lyrics="false"][data-peek="true"] .np-peek {
+      translate: 0 -3.5rem;
+    }
+  }
+
+  .np-stage[data-lyrics="true"] {
+    grid-template-rows: minmax(0, 0.8fr) minmax(0, 1.2fr) auto;
+    grid-template-areas:
+      "art"
+      "lyrics"
+      "controls";
+  }
+
+  @media (min-width: 64rem) {
+    .np-stage[data-lyrics="true"] {
+      grid-template-columns: minmax(0, 26rem) minmax(0, 34rem);
+      grid-template-rows: minmax(0, 1fr) auto;
+      grid-template-areas:
+        "art lyrics"
+        "controls lyrics";
+      gap: 1.5rem 3.5rem;
+      justify-content: center;
+    }
+  }
+
+  /*
+   * A size container, so the art can be sized against the height it actually
+   * has. Without that the art claims the whole cell and centres inside it,
+   * which leaves the slack between the art and the peek rather than below it.
+   */
+  .np-art {
+    grid-area: art;
+    container-type: size;
+  }
+
+  .np-lyrics {
+    grid-area: lyrics;
+  }
+
+  .np-peek {
+    grid-area: peek;
+  }
+
+  .np-controls {
+    grid-area: controls;
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--content) 18%, transparent);
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--content) 30%, transparent);
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Frostier surfaces when the user asks for less transparency. */
+@media (prefers-reduced-transparency: reduce) {
+  .material {
+    background: var(--surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --content-secondary: rgb(255 255 255 / 0.85);
+    --content-tertiary: rgb(255 255 255 / 0.7);
+    --separator: rgb(255 255 255 / 0.3);
+  }
+
+  .material {
+    background: var(--canvas);
+    backdrop-filter: none;
+    border-color: var(--content-tertiary);
+  }
+}
+
+/*
+ * Reduced motion keeps feedback but drops travel: transitions become short
+ * cross-fades instead of slides and springs.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 120ms !important;
+    scroll-behavior: auto !important;
+  }
+}
