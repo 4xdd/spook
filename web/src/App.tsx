@@ -14,6 +14,7 @@ import { ArtistDetail } from "@/routes/ArtistDetail";
 import { Artists } from "@/routes/Artists";
 import { RecentlyAdded } from "@/routes/RecentlyAdded";
 import { DeezerAdd } from "@/routes/DeezerAdd";
+import { PlaylistDetail } from "@/routes/PlaylistDetail";
 import { SearchResults } from "@/routes/SearchResults";
 import { Songs } from "@/routes/Songs";
 import { ApiError, api } from "@/lib/api";
@@ -93,6 +94,7 @@ function LibraryApp({ onLock }: { onLock(): void }) {
             <Route path="/artists" element={<Artists />} />
             <Route path="/artists/:id" element={<ArtistDetail />} />
             <Route path="/songs" element={<Songs />} />
+            <Route path="/playlists/:id" element={<PlaylistDetail />} />
             <Route path="/search" element={<SearchResults />} />
             <Route path="/deezer" element={<DeezerAdd />} />
             <Route path="*" element={<Navigate to="/" replace />} />

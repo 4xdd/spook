@@ -15,7 +15,7 @@ LDFLAGS    = -s -w \
 
 RELEASE_DIR = dist/releases
 
-.PHONY: help build build-ui build-server run dev dev-server dev-ui test clean check-node check-port release package-release
+.PHONY: help build build-ui build-server run dev dev-server dev-ui test clean check-node check-port release package-release convert-mert
 
 help:
 	@echo "make build              Build the web UI and the server binary"
@@ -24,6 +24,7 @@ help:
 	@echo "make package-release    Build release binaries and .tar.gz / .zip archives"
 	@echo "make dev                Run the Go server and the Vite dev server together"
 	@echo "make test               Run the Go test suite"
+	@echo "make convert-mert       Download and convert MERT-v1-95M to ~/.local/share/spook/models/"
 	@echo "make clean              Remove build output"
 	@echo ""
 	@echo "Variables:"
@@ -109,6 +110,19 @@ dev:
 
 test:
 	cd server && go test ./...
+
+# Requires python3 venv with torch + huggingface_hub (created on first run).
+MERT_MODEL_DIR ?= $(HOME)/.local/share/spook/models
+convert-mert:
+	@mkdir -p /tmp/mert-work
+	@if [ ! -d /tmp/mert-work/venv ]; then python3 -m venv /tmp/mert-work/venv && /tmp/mert-work/venv/bin/pip install -q torch huggingface_hub safetensors numpy; fi
+	@if [ ! -f /tmp/mert-work/MERT-v1-95M/pytorch_model.bin ]; then \
+		/tmp/mert-work/venv/bin/python3 -c "from huggingface_hub import hf_hub_download; hf_hub_download('m-a-p/MERT-v1-95M','pytorch_model.bin',local_dir='/tmp/mert-work/MERT-v1-95M'); hf_hub_download('m-a-p/MERT-v1-95M','config.json',local_dir='/tmp/mert-work/MERT-v1-95M')"; \
+	fi
+	/tmp/mert-work/venv/bin/python3 scripts/convert_mert.py \
+		--input /tmp/mert-work/MERT-v1-95M \
+		--output $(MERT_MODEL_DIR)/mert-v1-95m.mert
+	@echo "MERT weights: $(MERT_MODEL_DIR)/mert-v1-95m.mert"
 
 clean:
 	rm -rf bin dist server/internal/web/dist/assets web/node_modules/.vite

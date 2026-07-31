@@ -1,13 +1,10 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useId, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
+import type { MenuItem } from "./MenuPanel";
+import { MenuPanel } from "./MenuPanel";
 
-export interface MenuItem {
-  label: string;
-  onSelect(): void;
-  icon?: React.ReactNode;
-  destructive?: boolean;
-}
+export type { MenuItem } from "./MenuPanel";
 
 interface Props {
   items: MenuItem[];
@@ -15,13 +12,14 @@ interface Props {
   children: React.ReactNode;
   align?: "left" | "right";
   className?: string;
+  onBeforeOpen?(): void | Promise<void>;
 }
 
 /**
  * A small dropdown anchored to its trigger, so the panel visibly grows out of
  * the control that opened it rather than appearing from nowhere.
  */
-export function Menu({ items, label, children, align = "right", className }: Props) {
+export function Menu({ items, label, children, align = "right", className, onBeforeOpen }: Props) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
@@ -44,6 +42,8 @@ export function Menu({ items, label, children, align = "right", className }: Pro
     };
   }, [open]);
 
+  const close = () => setOpen(false);
+
   return (
     <div ref={containerRef} className={cn("relative", className)}>
       <button
@@ -52,8 +52,9 @@ export function Menu({ items, label, children, align = "right", className }: Pro
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
-        onClick={(event) => {
+        onClick={async (event) => {
           event.stopPropagation();
+          await onBeforeOpen?.();
           setOpen((value) => !value);
         }}
         className="grid h-7 w-7 place-items-center rounded-full text-secondary transition-transform duration-100 hover:bg-fill hover:text-content active:scale-90"
@@ -66,36 +67,18 @@ export function Menu({ items, label, children, align = "right", className }: Pro
           <motion.div
             id={menuId}
             role="menu"
+            aria-label={label}
             initial={{ opacity: 0, scale: 0.94, y: -4 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: -2 }}
             transition={{ type: "spring", bounce: 0, duration: 0.22 }}
             style={{ transformOrigin: align === "right" ? "top right" : "top left" }}
             className={cn(
-              "material absolute z-50 mt-1 min-w-48 overflow-hidden rounded-xl border border-separator p-1 shadow-pop",
+              "material absolute z-50 mt-1 min-w-48 overflow-visible rounded-xl border border-separator p-1 shadow-pop",
               align === "right" ? "right-0" : "left-0",
             )}
           >
-            {items.map((item) => (
-              <button
-                key={item.label}
-                type="button"
-                role="menuitem"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setOpen(false);
-                  item.onSelect();
-                }}
-                className={cn(
-                  "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition-colors",
-                  "hover:bg-accent hover:text-accent-content",
-                  item.destructive ? "text-red-400" : "text-content",
-                )}
-              >
-                {item.icon}
-                {item.label}
-              </button>
-            ))}
+            <MenuPanel items={items} onClose={close} />
           </motion.div>
         )}
       </AnimatePresence>

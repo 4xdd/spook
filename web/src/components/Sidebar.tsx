@@ -1,9 +1,11 @@
-import { Clock, CloudDownload, Disc3, ListMusic, Loader2, Music2, RefreshCw, Search, Settings, Users } from "lucide-react";
+import { Clock, CloudDownload, Disc3, Heart, ListMusic, Loader2, Music2, RefreshCw, Search, Settings, Users } from "lucide-react";
 import { forwardRef, useEffect, useState } from "react";
 import { NavLink, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { cn } from "@/lib/cn";
 import { plural } from "@/lib/format";
 import { useRefreshLibrary, useStartScan, useStats, useDeezerStatus } from "@/lib/queries";
+import { LIKED_PLAYLIST_ID } from "@/lib/playlists";
+import { usePlaylists } from "@/player/PlaylistProvider";
 
 const links = [
   { to: "/", label: "Recently Added", icon: Clock, end: true },
@@ -24,6 +26,8 @@ export const Sidebar = forwardRef<HTMLInputElement, Props>(function Sidebar({ on
   const { data: deezerStatus } = useDeezerStatus();
   const startScan = useStartScan();
   const refreshLibrary = useRefreshLibrary();
+  const { playlists } = usePlaylists();
+  const userPlaylists = playlists.filter((p) => !p.system);
 
   const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
   const scanning = stats?.scan.state === "scanning";
@@ -118,6 +122,49 @@ export const Sidebar = forwardRef<HTMLInputElement, Props>(function Sidebar({ on
             )}
           </NavLink>
         )}
+      </nav>
+
+      <nav className="flex flex-col gap-0.5" aria-label="Playlists">
+        <div className="px-2.5 pt-1 pb-1 text-[11px] font-semibold tracking-[0.04em] text-tertiary uppercase">
+          Playlists
+        </div>
+        <NavLink
+          to={`/playlists/${LIKED_PLAYLIST_ID}`}
+          className={({ isActive }) =>
+            cn(
+              "flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] transition-colors duration-100",
+              "active:scale-[0.99]",
+              isActive ? "bg-fill-strong text-content" : "text-secondary hover:bg-fill hover:text-content",
+            )
+          }
+        >
+          {({ isActive }) => (
+            <>
+              <Heart className={cn("h-4 w-4", isActive && "text-accent")} aria-hidden />
+              Liked
+            </>
+          )}
+        </NavLink>
+        {userPlaylists.map((playlist) => (
+          <NavLink
+            key={playlist.id}
+            to={`/playlists/${playlist.id}`}
+            className={({ isActive }) =>
+              cn(
+                "flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] transition-colors duration-100",
+                "active:scale-[0.99]",
+                isActive ? "bg-fill-strong text-content" : "text-secondary hover:bg-fill hover:text-content",
+              )
+            }
+          >
+            {({ isActive }) => (
+              <>
+                <ListMusic className={cn("h-4 w-4", isActive && "text-accent")} aria-hidden />
+                <span className="truncate">{playlist.name}</span>
+              </>
+            )}
+          </NavLink>
+        ))}
       </nav>
 
       <div className="mt-auto flex flex-col gap-1.5 px-2.5 text-[11px] text-tertiary">

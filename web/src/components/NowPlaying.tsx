@@ -1,8 +1,10 @@
-import { ChevronDown, ListMusic, Repeat, Repeat1, Shuffle, SkipBack, SkipForward } from "lucide-react";
+import { ChevronDown, Heart, ListMusic, Plus, Repeat, Repeat1, Shuffle, SkipBack, SkipForward } from "lucide-react";
 import { AnimatePresence, motion, type PanInfo } from "motion/react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/cn";
+import { LIKED_PLAYLIST_ID } from "@/lib/playlists";
 import { useLyricsAvailable, useSyncedLyrics } from "@/lib/queries";
+import { usePlaylists } from "@/player/PlaylistProvider";
 import { usePlayer } from "@/player/PlayerProvider";
 import { Artwork } from "./Artwork";
 import { IconButton } from "./IconButton";
@@ -41,7 +43,10 @@ const LYRICS_IN = { duration: 0.5, ease: [0.22, 1, 0.36, 1], delay: 0.14 } as co
 
 export function NowPlaying({ open, lyricsOpen, onClose, onToggleLyrics, onShowQueue }: Props) {
   const { current, isPlaying, toggle, next, previous, shuffle, repeat, toggleShuffle, cycleRepeat } = usePlayer();
+  const { addToLiked, isInPlaylist } = usePlaylists();
   const navigate = useNavigate();
+
+  const liked = current ? isInPlaylist(LIKED_PLAYLIST_ID, current.id) : false;
 
   const RepeatIcon = repeat === "one" ? Repeat1 : Repeat;
   // Stick the preference across tracks, but fall back to full artwork when the
@@ -94,6 +99,21 @@ export function NowPlaying({ open, lyricsOpen, onClose, onToggleLyrics, onShowQu
               aria-hidden
             />
             <div className="flex items-center gap-1">
+              <IconButton
+                label={liked ? "In Liked" : "Add to Liked"}
+                active={liked}
+                onClick={() => {
+                  if (!current || liked) return;
+                  addToLiked(current);
+                }}
+                disabled={!current || liked}
+              >
+                {liked ? (
+                  <Heart className="h-4.5 w-4.5" fill="currentColor" aria-hidden />
+                ) : (
+                  <Plus className="h-4.5 w-4.5" aria-hidden />
+                )}
+              </IconButton>
               <IconButton label="Show queue" onClick={onShowQueue}>
                 <ListMusic className="h-4.5 w-4.5" aria-hidden />
               </IconButton>

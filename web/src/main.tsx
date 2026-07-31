@@ -5,6 +5,7 @@ import { BrowserRouter } from "react-router-dom";
 import { App } from "./App";
 import { EqualizerProvider } from "./player/EqualizerProvider";
 import { PlayerProvider } from "./player/PlayerProvider";
+import { PlaylistProvider } from "./player/PlaylistProvider";
 import { applyTheme, readTheme } from "@/lib/theme";
 import "./index.css";
 
@@ -45,9 +46,11 @@ createRoot(root).render(
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <PlayerProvider>
-          <EqualizerProvider>
-            <App />
-          </EqualizerProvider>
+          <PlaylistProvider>
+            <EqualizerProvider>
+              <App />
+            </EqualizerProvider>
+          </PlaylistProvider>
         </PlayerProvider>
       </BrowserRouter>
     </QueryClientProvider>

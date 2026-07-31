@@ -1,18 +1,20 @@
-import { Play, Shuffle } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { MoreHorizontal, Play, Shuffle } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { Artwork } from "@/components/Artwork";
 import { PageShell } from "@/components/PageShell";
 import { ErrorState, LoadingState } from "@/components/States";
 import { TrackRow } from "@/components/TrackRow";
+import { Menu } from "@/components/Menu";
+import { ContextMenu, useContextMenu } from "@/components/ContextMenu";
 import { formatReleaseType, formatRuntime, plural } from "@/lib/format";
+import { buildAlbumMenuItems, usePlaylistMenuItems } from "@/hooks/usePlaylistMenuItems";
 import { useAlbum } from "@/lib/queries";
 import { usePlayer } from "@/player/PlayerProvider";
-import type { Track } from "@/lib/api";
+import type { AlbumDetail as AlbumDetailData, Track } from "@/lib/api";
 
 export function AlbumDetail() {
   const { id = "" } = useParams();
   const { data, isPending, error } = useAlbum(id);
-  const { play, playShuffled } = usePlayer();
 
   if (isPending) {
     return (
@@ -29,12 +31,29 @@ export function AlbumDetail() {
     );
   }
 
+  return <AlbumDetailView data={data} />;
+}
+
+function AlbumDetailView({ data }: { data: AlbumDetailData }) {
+  const { play, playShuffled } = usePlayer();
+  const navigate = useNavigate();
+  const contextMenu = useContextMenu();
   const { album, tracks } = data;
   const context = { label: album.name, id: album.id };
   const discs = groupByDisc(tracks, album.discCount);
+  const playlistItems = usePlaylistMenuItems(tracks);
+  const albumMenuItems = buildAlbumMenuItems({
+    play: () => play(tracks, 0, context),
+    shuffle: () => playShuffled(tracks, context),
+    goToArtist: () => navigate(`/artists/${album.artistId}`),
+    playlistItems,
+  });
 
   const hero = (
-    <div className="flex flex-col gap-6 px-4 pt-14 pb-6 sm:flex-row sm:items-end sm:px-6 sm:pt-16">
+    <div
+      className="flex flex-col gap-6 px-4 pt-14 pb-6 sm:flex-row sm:items-end sm:px-6 sm:pt-16"
+      onContextMenu={contextMenu.openAt}
+    >
       <Artwork
         artworkId={album.artworkId}
         size={1000}
@@ -64,7 +83,7 @@ export function AlbumDetail() {
           </p>
         </div>
 
-        <div className="flex gap-2.5">
+        <div className="flex items-center gap-2.5">
           <button
             type="button"
             onClick={() => play(tracks, 0, context)}
@@ -82,6 +101,9 @@ export function AlbumDetail() {
             <Shuffle className="h-3.5 w-3.5" aria-hidden />
             Shuffle
           </button>
+          <Menu label={`More options for ${album.name}`} items={albumMenuItems} align="left">
+            <MoreHorizontal className="h-4 w-4" aria-hidden />
+          </Menu>
         </div>
       </div>
     </div>
@@ -110,6 +132,15 @@ export function AlbumDetail() {
           </section>
         ))}
       </div>
+
+      <ContextMenu
+        open={contextMenu.isOpen}
+        x={contextMenu.position?.x ?? 0}
+        y={contextMenu.position?.y ?? 0}
+        label={`Options for ${album.name}`}
+        items={albumMenuItems}
+        onClose={contextMenu.close}
+      />
     </PageShell>
   );
 }

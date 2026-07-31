@@ -24,6 +24,7 @@ blob-report/
 # Local data (created at runtime)
 *.db
 *.db-*
+*.mert
 
 # OS / editor
 .DS_Store
