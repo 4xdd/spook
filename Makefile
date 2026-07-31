@@ -5,11 +5,23 @@ API_URL   = http://localhost$(ADDR)
 # Vite 6+ needs Node 18; Vite 8 needs Node 20+.
 MIN_NODE  = 18
 
-.PHONY: help build build-ui build-server run dev dev-server dev-ui test clean check-node check-port
+VERSION    ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+COMMIT     ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+BUILD_DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+LDFLAGS    = -s -w \
+	-X github.com/spook/server/internal/version.Version=$(VERSION) \
+	-X github.com/spook/server/internal/version.Commit=$(COMMIT) \
+	-X github.com/spook/server/internal/version.BuildDate=$(BUILD_DATE)
+
+RELEASE_DIR = dist/releases
+
+.PHONY: help build build-ui build-server run dev dev-server dev-ui test clean check-node check-port release package-release
 
 help:
 	@echo "make build              Build the web UI and the server binary"
 	@echo "make run                Build everything, then serve MUSIC_DIR=$(MUSIC_DIR)"
+	@echo "make release            Cross-compile release binaries → $(RELEASE_DIR)/"
+	@echo "make package-release    Build release binaries and .tar.gz / .zip archives"
 	@echo "make dev                Run the Go server and the Vite dev server together"
 	@echo "make test               Run the Go test suite"
 	@echo "make clean              Remove build output"
@@ -24,7 +36,49 @@ build-ui: check-node
 	cd web && npm install --silent && npm run build
 
 build-server:
-	cd server && go build -o ../bin/spook ./cmd/spook
+	cd server && CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o ../bin/spook ./cmd/spook
+
+release: build-ui
+	@mkdir -p $(RELEASE_DIR)
+	@set -e; \
+	for spec in \
+		"linux amd64 spook-linux-amd64" \
+		"linux arm64 spook-linux-arm64" \
+		"darwin amd64 spook-darwin-amd64" \
+		"darwin arm64 spook-darwin-arm64" \
+		"windows amd64 spook-windows-amd64.exe" \
+		"windows arm64 spook-windows-arm64.exe"; do \
+		set -- $$spec; \
+		echo "building $$3 ($$1/$$2)"; \
+		cd server && CGO_ENABLED=0 GOOS=$$1 GOARCH=$$2 go build -ldflags "$(LDFLAGS)" -o ../$(RELEASE_DIR)/$$3 ./cmd/spook; \
+		cd ..; \
+	done
+
+package-release: release
+	@set -e; \
+	for spec in \
+		"linux-amd64 spook-linux-amd64 spook tar.gz" \
+		"linux-arm64 spook-linux-arm64 spook tar.gz" \
+		"darwin-amd64 spook-darwin-amd64 spook tar.gz" \
+		"darwin-arm64 spook-darwin-arm64 spook tar.gz" \
+		"windows-amd64 spook-windows-amd64.exe spook.exe zip" \
+		"windows-arm64 spook-windows-arm64.exe spook.exe zip"; do \
+		set -- $$spec; \
+		name="spook-$(VERSION)-$$1"; \
+		staging="$(RELEASE_DIR)/$$name"; \
+		rm -rf "$$staging"; \
+		mkdir -p "$$staging"; \
+		cp "$(RELEASE_DIR)/$$2" "$$staging/$$3"; \
+		cp .env.example "$$staging/.env.example"; \
+		cp scripts/release-install.txt "$$staging/INSTALL.txt"; \
+		if [ "$$4" = "tar.gz" ]; then \
+			tar -C "$(RELEASE_DIR)" -czf "$(RELEASE_DIR)/$$name.tar.gz" "$$name"; \
+		else \
+			(cd "$(RELEASE_DIR)" && zip -rq "$$name.zip" "$$name"); \
+		fi; \
+		rm -rf "$$staging"; \
+		echo "packaged $(RELEASE_DIR)/$$name.$$4"; \
+	done
 
 run: build
 	./bin/spook -music-dir "$(MUSIC_DIR)" -addr "$(ADDR)" -open
@@ -57,4 +111,4 @@ test:
 	cd server && go test ./...
 
 clean:
-	rm -rf bin server/internal/web/dist/assets web/node_modules/.vite
+	rm -rf bin dist server/internal/web/dist/assets web/node_modules/.vite

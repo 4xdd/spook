@@ -21,8 +21,41 @@ export interface TimedWord {
   durationMs: number;
 }
 
+/** One display row: lead vocal on the left, harmonies stacked on the right. */
+export interface LyricDisplayRow {
+  timeMs: number;
+  text: string;
+  secondaryTexts: string[];
+}
+
+/**
+ * Lines that share a timestamp are one moment in the song — lead first, then any
+ * backing or harmony parts beside it rather than on their own row below.
+ */
+export function groupLyricLines(lines: LyricLine[]): LyricDisplayRow[] {
+  const rows: LyricDisplayRow[] = [];
+
+  for (const line of lines) {
+    if (line.text === "") {
+      rows.push({ timeMs: line.timeMs, text: "", secondaryTexts: [] });
+      continue;
+    }
+
+    const last = rows.at(-1);
+    const layered = last && last.text !== "" && line.timeMs >= 0 && last.timeMs === line.timeMs;
+
+    if (layered) {
+      last.secondaryTexts.push(line.text);
+    } else {
+      rows.push({ timeMs: line.timeMs, text: line.text, secondaryTexts: [] });
+    }
+  }
+
+  return rows;
+}
+
 /** The last line whose timestamp has passed, or -1 before the first one. */
-export function activeLineIndex(lines: LyricLine[], timeMs: number): number {
+export function activeLineIndex(lines: readonly { timeMs: number }[], timeMs: number): number {
   let active = -1;
   for (let i = 0; i < lines.length; i += 1) {
     if (lines[i].timeMs > timeMs) break;

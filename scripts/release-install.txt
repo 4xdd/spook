@@ -1,0 +1,31 @@
+Spook — local music streaming
+================================
+
+Quick start
+-----------
+
+1. Put your music folder path in .env (copy from .env.example) or pass -music-dir.
+
+2. Run the binary:
+
+   Linux / macOS:
+     chmod +x spook
+     ./spook -open
+
+   Windows:
+     spook.exe -open
+
+3. Open http://localhost:8080/ if the browser did not launch automatically.
+
+4. Enter the access key printed in the terminal on first run.
+
+Configuration
+-------------
+
+Optional settings live in a .env file next to the binary (or in the current directory).
+See .env.example for MUSIC_DIR, Deezer, Last.fm, and other options.
+
+Flags override environment variables. Run with -h for the full list.
+
+Data is stored under ~/.local/share/spook by default (library database and access keys).
+Cover art cache: ~/.cache/spook/art

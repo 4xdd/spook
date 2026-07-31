@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -24,10 +25,15 @@ import (
 	"github.com/spook/server/internal/lyrics"
 	"github.com/spook/server/internal/scan"
 	"github.com/spook/server/internal/store"
+	"github.com/spook/server/internal/version"
 	"github.com/spook/server/internal/web"
 )
 
 func main() {
+	if showVersion() {
+		return
+	}
+
 	cfg := config.Load()
 
 	db, err := store.Open(cfg.DatabasePath())
@@ -160,6 +166,16 @@ func openBrowser(url string) {
 	if err := cmd.Start(); err != nil {
 		log.Printf("open browser: %v", err)
 	}
+}
+
+func showVersion() bool {
+	for _, arg := range os.Args[1:] {
+		if arg == "-version" || arg == "--version" || arg == "-V" {
+			fmt.Println(version.String())
+			return true
+		}
+	}
+	return false
 }
 
 func displayHost(addr string) string {

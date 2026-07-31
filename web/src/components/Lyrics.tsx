@@ -2,7 +2,14 @@ import { Loader2 } from "lucide-react";
 import { Fragment, useCallback, useEffect, useRef } from "react";
 import type { LyricLine, Track } from "@/lib/api";
 import { cn } from "@/lib/cn";
-import { HELD_WORD_MS, activeLineIndex, activeWordIndex, wordsForLine } from "@/lib/lyrics";
+import {
+  HELD_WORD_MS,
+  activeLineIndex,
+  activeWordIndex,
+  groupLyricLines,
+  type LyricDisplayRow,
+  wordsForLine,
+} from "@/lib/lyrics";
 import { useLyrics } from "@/lib/queries";
 import { usePlayer, useProgressSelector } from "@/player/PlayerProvider";
 
@@ -38,6 +45,7 @@ export function Lyrics({ track, className }: Props) {
   const { data, isPending, isError, error } = useLyrics(track.id);
 
   const lines = data?.lines ?? noLines;
+  const rows = groupLyricLines(lines);
   const synced = data?.synced ?? false;
 
   const syncKey = useProgressSelector(
@@ -45,19 +53,22 @@ export function Lyrics({ track, className }: Props) {
       (progress) => {
         if (!synced) return "-1:-1";
         const timeMs = progress.currentTime * 1000;
-        const line = activeLineIndex(lines, timeMs);
-        if (line < 0) return "-1:-1";
-        const current = lines[line];
-        if (!current || current.text === "") return `${line}:-1`;
-        const word = activeWordIndex(wordsForLine(current, lines[line + 1]?.timeMs), timeMs);
-        return `${line}:${word}`;
+        const line = activeLineIndex(rows, timeMs);
+        if (line < 0) return `${timeMs}:-1:-1`;
+        const current = rows[line];
+        if (!current || current.text === "") return `${timeMs}:${line}:-1`;
+        const word = activeWordIndex(
+          wordsForLine({ timeMs: current.timeMs, text: current.text }, rows[line + 1]?.timeMs),
+          timeMs,
+        );
+        return `${timeMs}:${line}:${word}`;
       },
-      [lines, synced],
+      [rows, synced],
     ),
   );
-  const [activeIndex, wordProgress] = (() => {
-    const [line, word] = syncKey.split(":").map(Number);
-    return [line, word] as const;
+  const [timeMs, activeIndex, wordProgress] = (() => {
+    const [time, line, word] = syncKey.split(":").map(Number);
+    return [time, line, word] as const;
   })();
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -87,7 +98,7 @@ export function Lyrics({ track, className }: Props) {
       top: line.offsetTop - container.clientHeight * ACTIVE_ANCHOR + line.clientHeight / 2,
       behavior: smooth ? "smooth" : "auto",
     });
-  }, [activeIndex, synced, lines]);
+  }, [activeIndex, synced, rows]);
 
   const onManualScroll = () => {
     manualScrollAt.current = Date.now();
@@ -112,7 +123,7 @@ export function Lyrics({ track, className }: Props) {
     );
   }
 
-  if (lines.length === 0) {
+  if (rows.length === 0) {
     return (
       <Shell className={className}>
         <p className="text-[15px] text-tertiary">No lyrics for this track</p>
@@ -138,16 +149,17 @@ export function Lyrics({ track, className }: Props) {
         The song opens flush with the top of the pane; only the tail needs room
         below it, so the closing line can still climb to the anchor.
       */}
-      <div className={cn("flex flex-col items-start gap-3 pt-5", synced ? "pb-[70cqh]" : "pb-5")}>
-        {lines.map((line, index) => (
+      <div className={cn("flex flex-col items-stretch gap-3 pt-5", synced ? "pb-[70cqh]" : "pb-5")}>
+        {rows.map((row, index) => (
           <LyricRow
             key={index}
             index={index}
-            line={line}
-            nextTimeMs={lines[index + 1]?.timeMs}
+            row={row}
+            nextTimeMs={rows[index + 1]?.timeMs}
             synced={synced}
             state={lineState(index, activeIndex, synced)}
             activeWord={index === activeIndex ? wordProgress : -1}
+            timeMs={synced ? timeMs : undefined}
             onSeek={seek}
           />
         ))}
@@ -158,46 +170,122 @@ export function Lyrics({ track, className }: Props) {
 
 interface RowProps {
   index: number;
-  line: LyricLine;
+  row: LyricDisplayRow;
   nextTimeMs?: number;
   synced: boolean;
   state: LineState;
   activeWord: number;
+  timeMs?: number;
   onSeek(seconds: number): void;
 }
 
-function LyricRow({ index, line, nextTimeMs, synced, state, activeWord, onSeek }: RowProps) {
+function LyricRow({ index, row, nextTimeMs, synced, state, activeWord, timeMs, onSeek }: RowProps) {
+  const line = { timeMs: row.timeMs, text: row.text };
   const words =
-    synced && state === "active" && line.text !== "" ? wordsForLine(line, nextTimeMs) : null;
+    synced && state === "active" && row.text !== ""
+      ? wordsForLine(line, nextTimeMs)
+      : null;
 
   // An empty line is a break: it holds its place so the highlight can move off
   // the line before it, but shows nothing.
-  if (line.text === "") {
+  if (row.text === "") {
     return <div data-line={index} className="h-3" aria-hidden />;
   }
 
-  const textClass = cn(
-    "block text-left transition-[color,opacity] duration-300 ease-out",
+  const mainClass = lyricTextClass(synced, state, "main");
+  const secondaryClass = lyricTextClass(synced, state, "secondary");
+  const layered = row.secondaryTexts.length > 0;
+
+  const content = (
+    <div
+      className={cn(
+        "flex w-full items-baseline gap-4",
+        layered ? "justify-between" : "justify-start",
+      )}
+    >
+      {renderLyricText(row.text, mainClass, words, activeWord, state === "active")}
+      {layered && (
+        <div className="flex min-w-0 shrink-0 flex-col items-end gap-0.5 text-right">
+          {row.secondaryTexts.map((secondary, i) => {
+            const secondaryWords =
+              synced && state === "active"
+                ? wordsForLine({ timeMs: row.timeMs, text: secondary }, nextTimeMs)
+                : null;
+            const secondaryActiveWord =
+              state === "active" && timeMs !== undefined && secondaryWords
+                ? activeWordIndex(secondaryWords, timeMs)
+                : -1;
+            return renderLyricText(
+              secondary,
+              secondaryClass,
+              secondaryWords,
+              secondaryActiveWord,
+              false,
+              `${index}-secondary-${i}`,
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
+  if (!synced) {
+    return (
+      <p data-line={index} className="w-full px-1">
+        {content}
+      </p>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      data-line={index}
+      onClick={() => onSeek(row.timeMs / 1000)}
+      aria-current={state === "active"}
+      title="Jump to this line"
+      className="w-full cursor-pointer rounded-md px-1 py-0.5 text-left transition-transform duration-100 ease-out hover:text-content active:scale-[0.99]"
+    >
+      {content}
+    </button>
+  );
+}
+
+function lyricTextClass(synced: boolean, state: LineState, role: "main" | "secondary") {
+  return cn(
+    "block transition-[color,opacity] duration-300 ease-out",
+    role === "main" ? "min-w-0 flex-1 text-left" : "text-right",
     synced
-      ? "text-[22px] leading-[1.2] font-semibold tracking-[-0.02em] sm:text-[26px] sm:leading-[1.15]"
-      : "text-[19px] leading-snug font-medium tracking-[-0.01em]",
+      ? role === "main"
+        ? "text-[22px] leading-[1.2] font-semibold tracking-[-0.02em] sm:text-[26px] sm:leading-[1.15]"
+        : "text-[18px] leading-[1.2] font-medium tracking-[-0.02em] sm:text-[22px] sm:leading-[1.15]"
+      : role === "main"
+        ? "text-[19px] leading-snug font-medium tracking-[-0.01em]"
+        : "text-[16px] leading-snug font-normal tracking-[-0.01em]",
     state === "active" && "text-content",
     state === "past" && "text-content/35",
     state === "upcoming" && "text-content/55",
     state === "static" && "text-content/85",
   );
+}
 
-  const text =
-    words && words.length > 0 ? (
-      <span className={textClass} aria-current="true">
+function renderLyricText(
+  text: string,
+  textClass: string,
+  words: ReturnType<typeof wordsForLine> | null,
+  activeWord: number,
+  ariaCurrent: boolean,
+  keyPrefix = "text",
+) {
+  if (words && words.length > 0) {
+    return (
+      <span className={textClass} aria-current={ariaCurrent || undefined}>
         {words.map((word, i) => {
           const sung = activeWord >= 0 && i <= activeWord;
           const current = i === activeWord;
-          // A word the singer sits on keeps brightening for as long as the note
-          // lasts, so a held note looks held instead of merely lit.
           const held = current && word.durationMs >= HELD_WORD_MS;
           return (
-            <Fragment key={`${i}-${word.text}`}>
+            <Fragment key={`${keyPrefix}-${i}-${word.text}`}>
               <span
                 className={cn(
                   "lyric-word transition-[opacity,color,text-shadow] duration-200 ease-out",
@@ -214,30 +302,10 @@ function LyricRow({ index, line, nextTimeMs, synced, state, activeWord, onSeek }
           );
         })}
       </span>
-    ) : (
-      <span className={textClass}>{line.text}</span>
-    );
-
-  if (!synced) {
-    return (
-      <p data-line={index} className="px-1">
-        {text}
-      </p>
     );
   }
 
-  return (
-    <button
-      type="button"
-      data-line={index}
-      onClick={() => onSeek(line.timeMs / 1000)}
-      aria-current={state === "active"}
-      title="Jump to this line"
-      className="cursor-pointer rounded-md px-1 py-0.5 text-left transition-transform duration-100 ease-out hover:text-content active:scale-[0.99]"
-    >
-      {text}
-    </button>
-  );
+  return <span className={textClass}>{text}</span>;
 }
 
 function Shell({ children, className }: { children: React.ReactNode; className?: string }) {

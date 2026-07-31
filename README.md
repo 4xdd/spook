@@ -19,6 +19,23 @@ The browser uses native `<audio>` streaming — no buffering the whole file.
 
 ## Quick start
 
+### Pre-built binary (no Go or Node required)
+
+Download the archive for your platform from [GitHub Releases](https://github.com/4xdd/spook/releases), extract it, and run:
+
+```bash
+chmod +x spook          # Linux / macOS only
+./spook -music-dir ~/Music -open
+```
+
+On Windows: `spook.exe -music-dir %USERPROFILE%\Music -open`
+
+Copy `.env.example` to `.env` beside the binary to set `MUSIC_DIR`, Deezer, Last.fm, and other options. Spook also reads `.env` from the current working directory.
+
+See `INSTALL.txt` in the release archive for a short reference.
+
+### From source
+
 ```bash
 make run MUSIC_DIR=~/Music
 ```
@@ -78,6 +95,8 @@ The API secret stays on the server. Your session (`username` + session key) is s
 ```bash
 make build          # build UI + server binary → bin/spook
 make run            # build and run
+make release        # cross-compile binaries → dist/releases/
+make package-release # release binaries + .tar.gz / .zip archives
 make dev            # Vite dev server + Go API (UI served from disk)
 make test           # run Go tests
 ```

@@ -24,7 +24,24 @@ func dotEnvCandidates() []string {
 	if path := strings.TrimSpace(os.Getenv("SPOOK_ENV_FILE")); path != "" {
 		return []string{path}
 	}
-	return []string{".env", "../.env"}
+	candidates := []string{".env"}
+	if dir := executableDir(); dir != "" {
+		candidates = append(candidates, filepath.Join(dir, ".env"))
+	}
+	candidates = append(candidates, "../.env")
+	return candidates
+}
+
+func executableDir() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+	resolved, err := filepath.EvalSymlinks(exe)
+	if err != nil {
+		return filepath.Dir(exe)
+	}
+	return filepath.Dir(resolved)
 }
 
 func parseDotEnvFile(path string) error {
