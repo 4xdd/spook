@@ -71,6 +71,7 @@ func main() {
 		Deezer:    deezerWorker,
 		Lyrics:    lyrics.NewOnline(cfg.Lyrics.Enabled, cfg.Lyrics.BaseURL),
 		LastFM:    lastfmClient,
+		Stream:    audio.NewStreamer(),
 		Root:      cfg.MusicDir,
 		ChunkSize: cfg.ChunkSize,
 	}

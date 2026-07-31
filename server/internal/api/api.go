@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/spook/server/internal/artwork"
+	"github.com/spook/server/internal/audio"
 	"github.com/spook/server/internal/deezer"
 	"github.com/spook/server/internal/httpx"
 	"github.com/spook/server/internal/lastfm"
@@ -25,6 +26,7 @@ type Server struct {
 	Deezer    *deezer.Worker
 	Lyrics    *lyrics.Online
 	LastFM    *lastfm.Client
+	Stream    *audio.Streamer
 	Root      string
 	ChunkSize int64
 }
@@ -226,7 +228,26 @@ func (s *Server) stream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("X-Spook-Track-Id", track.ID)
+
+	if transcodeRequested(r) {
+		if s.Stream == nil || !s.Stream.Available() {
+			httpx.WriteError(w, http.StatusServiceUnavailable, "transcoding requires ffmpeg")
+			return
+		}
+		s.Stream.StreamMP3(w, r, track.Path, s.ChunkSize)
+		return
+	}
+
 	httpx.ServeAudio(w, r, track.Path, s.ChunkSize)
+}
+
+func transcodeRequested(r *http.Request) bool {
+	switch r.URL.Query().Get("transcode") {
+	case "1", "true", "yes":
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *Server) scanStatus(w http.ResponseWriter, r *http.Request) {

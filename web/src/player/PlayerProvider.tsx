@@ -9,7 +9,10 @@ import {
   type ReactNode,
 } from "react";
 import type { Track } from "@/lib/api";
-import { artworkUrl, streamUrl } from "@/lib/api";
+import { artworkUrl } from "@/lib/api";
+import { nextTrackPreloadThreshold, noteRebuffer, shouldPreloadNextTrack } from "@/lib/network";
+import { playbackStreamUrl } from "@/lib/playback";
+import { bufferedAhead, safePlay } from "./buffer";
 import { equalizer } from "./equalizer";
 import type { PlayerSnapshot, Progress, QueueContext, RepeatMode } from "./types";
 
@@ -108,7 +111,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   if (audioRef.current === null && typeof Audio !== "undefined") {
     const audio = new Audio();
-    audio.preload = "metadata";
+    audio.preload = "auto";
     audio.volume = persisted.volume ?? 1;
     audio.muted = persisted.muted ?? false;
     audioRef.current = audio;
@@ -162,7 +165,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const onEnded = () => {
       if (repeat === "one") {
         audio.currentTime = 0;
-        void audio.play();
+        void safePlay(audio).catch(() => setIsPlaying(false));
         return;
       }
       if (index + 1 >= queue.length && repeat !== "all") {
@@ -182,7 +185,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
-    const onWaiting = () => setIsLoading(true);
+    const onWaiting = () => {
+      noteRebuffer();
+      setIsLoading(true);
+    };
+    const onStalled = () => {
+      noteRebuffer();
+      setIsLoading(true);
+    };
     const onPlaying = () => setIsLoading(false);
     const onTimeUpdate = () => {
       if (!isPlaying) {
@@ -203,6 +213,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     audio.addEventListener("play", onPlay);
     audio.addEventListener("pause", onPause);
     audio.addEventListener("waiting", onWaiting);
+    audio.addEventListener("stalled", onStalled);
     audio.addEventListener("playing", onPlaying);
     audio.addEventListener("timeupdate", onTimeUpdate);
     audio.addEventListener("error", onError);
@@ -213,6 +224,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       audio.removeEventListener("play", onPlay);
       audio.removeEventListener("pause", onPause);
       audio.removeEventListener("waiting", onWaiting);
+      audio.removeEventListener("stalled", onStalled);
       audio.removeEventListener("playing", onPlaying);
       audio.removeEventListener("timeupdate", onTimeUpdate);
       audio.removeEventListener("error", onError);
@@ -222,43 +234,89 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   /** Swaps the source when the track changes, leaving playback state alone. */
   const loadedIdRef = useRef<string | null>(null);
   const shouldAutoplayRef = useRef(false);
+  const loadAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
+    loadAbortRef.current?.abort();
+    const loadAbort = new AbortController();
+    loadAbortRef.current = loadAbort;
+
     if (!current) {
       audio.removeAttribute("src");
       loadedIdRef.current = null;
-      return;
+      return () => loadAbort.abort();
     }
-    if (loadedIdRef.current === current.id) return;
+    if (loadedIdRef.current === current.id) {
+      return () => loadAbort.abort();
+    }
 
     loadedIdRef.current = current.id;
     setError(null);
     setIsLoading(true);
-    audio.src = streamUrl(current.streamUrl);
+    audio.preload = "auto";
+    audio.src = playbackStreamUrl(current);
     audio.load();
     publishProgress({ currentTime: 0, duration: (current.durationMs ?? 0) / 1000 });
 
     if (shouldAutoplayRef.current) {
-      void audio.play().catch(() => setIsPlaying(false));
+      void safePlay(audio, loadAbort.signal).catch((err: unknown) => {
+        if (loadAbort.signal.aborted) return;
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setIsPlaying(false);
+      });
     }
+
+    return () => loadAbort.abort();
   }, [current, publishProgress]);
 
-  // Warm the next track so a track change does not stall on the first bytes.
+  // Warm the next track only after the current one has a comfortable buffer,
+  // so a slow link is not serving two streams at once.
   useEffect(() => {
+    if (!shouldPreloadNextTrack()) {
+      preloadRef.current = null;
+      return;
+    }
+
     const upcoming = queue[index + 1];
     if (!upcoming) {
       preloadRef.current = null;
       return;
     }
-    const preload = new Audio();
-    preload.preload = "auto";
-    preload.src = streamUrl(upcoming.streamUrl);
-    preloadRef.current = preload;
+
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    let cancelled = false;
+    let preload: HTMLAudioElement | null = null;
+    let timer = 0;
+
+    const attachPreload = () => {
+      if (cancelled || preload) return;
+      preload = new Audio();
+      preload.preload = "auto";
+      preload.src = playbackStreamUrl(upcoming);
+      preloadRef.current = preload;
+    };
+
+    const poll = () => {
+      if (cancelled) return;
+      if (bufferedAhead(audio) >= nextTrackPreloadThreshold()) {
+        attachPreload();
+        return;
+      }
+      timer = window.setTimeout(poll, 1500);
+    };
+
+    timer = window.setTimeout(poll, 3000);
+
     return () => {
-      preload.removeAttribute("src");
+      cancelled = true;
+      window.clearTimeout(timer);
+      preload?.removeAttribute("src");
+      preloadRef.current = null;
     };
   }, [index, queue]);
 
@@ -302,7 +360,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const audio = audioRef.current;
     if (audio && loadedIdRef.current === tracks[startIndex]?.id) {
       audio.currentTime = 0;
-      void audio.play();
+      void safePlay(audio).catch(() => setIsPlaying(false));
     }
   }, []);
 
@@ -326,7 +384,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (!audio || !current) return;
     shouldAutoplayRef.current = true;
     if (audio.paused) {
-      void audio.play().catch(() => setIsPlaying(false));
+      void safePlay(audio).catch(() => setIsPlaying(false));
     } else {
       audio.pause();
     }

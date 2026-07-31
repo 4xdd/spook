@@ -32,6 +32,7 @@ func ServeAudio(w http.ResponseWriter, r *http.Request, path string, chunkSize i
 	w.Header().Set("Accept-Ranges", "bytes")
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Cache-Control", "private, max-age=3600")
+	w.Header().Set("X-Accel-Buffering", "no")
 	w.Header().Set("X-Spook-Chunk-Size", strconv.FormatInt(chunkSize, 10))
 
 	if chunkSize <= 0 {
@@ -75,6 +76,10 @@ func ServeAudio(w http.ResponseWriter, r *http.Request, path string, chunkSize i
 }
 
 func copyChunks(w http.ResponseWriter, r io.Reader, total, chunkSize int64) {
+	if chunkSize <= 0 {
+		chunkSize = 256 * 1024
+	}
+
 	buf := make([]byte, chunkSize)
 	remaining := total
 
