@@ -94,7 +94,6 @@ export function NowPlaying({ open, lyricsOpen, onClose, onToggleLyrics, onShowQu
               aria-hidden
             />
             <div className="flex items-center gap-1">
-              <LyricsButton trackId={current.id} active={showLyrics} onClick={onToggleLyrics} />
               <IconButton label="Show queue" onClick={onShowQueue}>
                 <ListMusic className="h-4.5 w-4.5" aria-hidden />
               </IconButton>
@@ -169,19 +168,19 @@ export function NowPlaying({ open, lyricsOpen, onClose, onToggleLyrics, onShowQu
                   <button
                     type="button"
                     onClick={() => goTo(`/artists/${current.artistId}`)}
-                    className="block max-w-full truncate text-left text-[17px] text-accent hover:underline"
+                    className="np-track-meta-secondary block max-w-full truncate text-left text-[17px] text-accent hover:underline"
                   >
                     {current.artist}
                   </button>
                   <button
                     type="button"
                     onClick={() => goTo(`/albums/${current.albumId}`)}
-                    className="block max-w-full truncate text-left text-[15px] text-secondary hover:underline"
+                    className="np-track-meta-secondary block max-w-full truncate text-left text-[15px] text-secondary hover:underline"
                   >
                     {current.album}
                   </button>
                 </div>
-                <span className="mt-1 shrink-0 rounded-md bg-fill px-2 py-0.5 text-[11px] font-medium tracking-wide text-secondary uppercase">
+                <span className="np-track-meta-secondary mt-1 shrink-0 rounded-md bg-fill px-2 py-0.5 text-[11px] font-medium tracking-wide text-secondary uppercase">
                   {current.format}
                   {current.sampleRateHz ? ` · ${(current.sampleRateHz / 1000).toFixed(1)} kHz` : ""}
                 </span>

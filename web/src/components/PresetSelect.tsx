@@ -129,7 +129,7 @@ export function PresetSelect({ value, disabled, onChange }: Props) {
                 width: coords.width,
                 transformOrigin: "top center",
               }}
-              className="material z-[60] max-h-[280px] overflow-y-auto rounded-xl border border-separator p-1 shadow-pop"
+              className="z-[60] max-h-[280px] overflow-y-auto rounded-xl border border-separator bg-canvas p-1 shadow-pop"
             >
               {options.map((option) => {
                 const selected = option.name === value;

@@ -121,7 +121,7 @@ export function Equalizer() {
 
       <div
         className={cn(
-          "rounded-xl border border-separator bg-fill/60 px-1 py-1 transition-opacity",
+          "rounded-xl border border-separator bg-fill px-1 py-1 transition-opacity",
           !enabled && "opacity-40",
         )}
       >

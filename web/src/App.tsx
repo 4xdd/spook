@@ -81,7 +81,7 @@ function LibraryApp({ onLock }: { onLock(): void }) {
       <MobileNav ref={mobileNavRef} onOpenSettings={openSettings} />
 
       <div className="relative grid min-h-0 grid-cols-1 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
-        <div className="hidden w-60 sm:block">
+        <div className="hidden h-full w-60 bg-canvas sm:block">
           <Sidebar ref={searchRef} onOpenSettings={openSettings} />
         </div>
 

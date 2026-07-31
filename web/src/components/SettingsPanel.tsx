@@ -38,6 +38,7 @@ export function SettingsPanel({
   onLock(): void;
 }) {
   const [theme, setTheme] = useState<Theme>(readTheme);
+  const [desktop, setDesktop] = useState(() => window.matchMedia("(min-width: 640px)").matches);
   const panelRef = useRef<HTMLDivElement>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
 
@@ -46,6 +47,13 @@ export function SettingsPanel({
     applyTheme(next);
     persistTheme(next);
   }
+
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 640px)");
+    const onChange = () => setDesktop(media.matches);
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -71,7 +79,7 @@ export function SettingsPanel({
   return (
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-40 grid place-items-end p-0 sm:place-items-center sm:p-4">
+        <div className="fixed inset-0 z-50 sm:grid sm:place-items-center sm:p-4">
           <motion.div
             key="settings-scrim"
             initial={{ opacity: 0 }}
@@ -79,7 +87,7 @@ export function SettingsPanel({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
             onClick={onClose}
-            className="absolute inset-0 bg-black/45"
+            className="absolute inset-0 hidden bg-black sm:block"
             aria-hidden
           />
 
@@ -90,16 +98,17 @@ export function SettingsPanel({
             aria-modal="true"
             aria-label="Settings"
             tabIndex={-1}
-            initial={{ opacity: 0, scale: 0.96, y: 8 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.97, y: 4 }}
-            transition={{ type: "spring", bounce: 0, duration: 0.28 }}
+            initial={desktop ? { opacity: 0, scale: 0.96, y: 8 } : { x: "100%" }}
+            animate={desktop ? { opacity: 1, scale: 1, y: 0 } : { x: 0 }}
+            exit={desktop ? { opacity: 0, scale: 0.97, y: 4 } : { x: "100%" }}
+            transition={desktop ? { type: "spring", bounce: 0, duration: 0.28 } : { type: "spring", bounce: 0, duration: 0.35 }}
             className={cn(
-              "material relative flex max-h-[min(92dvh,720px)] w-full max-w-lg flex-col",
-              "overflow-hidden rounded-t-2xl border border-separator shadow-pop outline-none sm:rounded-2xl",
+              "relative flex h-full w-full flex-col bg-canvas outline-none",
+              "sm:h-auto sm:max-h-[min(92dvh,720px)] sm:max-w-lg",
+              "sm:overflow-hidden sm:rounded-2xl sm:border sm:border-separator sm:shadow-pop",
             )}
           >
-            <header className="flex shrink-0 items-center justify-between gap-2 border-b border-separator px-5 py-3.5">
+            <header className="flex shrink-0 items-center justify-between gap-2 border-b border-separator px-4 py-3.5 pt-safe sm:px-5">
               <h2 className="text-[15px] font-semibold">Settings</h2>
               <button
                 type="button"

@@ -362,6 +362,13 @@
     z-index: 1;
   }
 
+  /* Lyrics mode on a phone: title only, no artist/album/format clutter. */
+  @media (width < 40rem) {
+    .np-stage[data-lyrics="true"] .np-track-meta-secondary {
+      display: none;
+    }
+  }
+
   .no-scrollbar {
     scrollbar-width: none;
   }

@@ -50,7 +50,7 @@ export const Sidebar = forwardRef<HTMLInputElement, Props>(function Sidebar({ on
   }
 
   return (
-    <aside className="material flex h-full min-h-0 w-full flex-col gap-4 border-r border-separator px-3 pt-4 pb-3">
+    <aside className="flex h-full min-h-0 w-full flex-col gap-4 border-r border-separator bg-canvas px-3 pt-4 pb-3">
       <div className="flex items-center gap-2 px-2">
         <span className="grid h-7 w-7 place-items-center rounded-lg bg-accent text-accent-content">
           <Music2 className="h-4 w-4" aria-hidden />
