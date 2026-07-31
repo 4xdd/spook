@@ -45,6 +45,8 @@ export function ErrorState({ message }: { message: string }) {
 /** The shared responsive album grid. */
 export function AlbumGrid({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] gap-x-5 gap-y-7">{children}</div>
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(8rem,1fr))] gap-x-4 gap-y-6 sm:grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] sm:gap-x-5 sm:gap-y-7">
+      {children}
+    </div>
   );
 }

@@ -17,7 +17,7 @@ export function Artists() {
       ) : artists.length === 0 ? (
         <EmptyState title="No artists yet" description="Scan a music folder to fill your library." />
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(8rem,1fr))] gap-x-5 gap-y-7">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(7rem,1fr))] gap-x-4 gap-y-6 sm:grid-cols-[repeat(auto-fill,minmax(8rem,1fr))] sm:gap-x-5 sm:gap-y-7">
           {artists.map((artist) => (
             <Link
               key={artist.id}

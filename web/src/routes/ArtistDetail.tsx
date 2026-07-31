@@ -33,7 +33,7 @@ export function ArtistDetail() {
   const context = { label: artist.name, id: artist.id };
 
   const hero = (
-    <div className="flex flex-col items-center gap-4 px-6 pt-16 pb-6 text-center">
+    <div className="flex flex-col items-center gap-4 px-4 pt-14 pb-6 text-center sm:px-6 sm:pt-16">
       <Artwork
         artworkId={artist.artworkId}
         size={300}

@@ -88,7 +88,7 @@ export function TrackRow({ track, onPlay, variant = "numbered", position, showAl
 
       <div className="text-[13px] tabular-nums text-tertiary">{formatDurationMs(track.durationMs)}</div>
 
-      <div className="opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
+      <div className="opacity-100 transition-opacity duration-150 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
         <Menu
           label={`More options for ${track.title}`}
           items={[

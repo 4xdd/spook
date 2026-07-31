@@ -71,7 +71,7 @@ export function SettingsPanel({
   return (
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-40 grid place-items-center p-4">
+        <div className="fixed inset-0 z-40 grid place-items-end p-0 sm:place-items-center sm:p-4">
           <motion.div
             key="settings-scrim"
             initial={{ opacity: 0 }}
@@ -95,8 +95,8 @@ export function SettingsPanel({
             exit={{ opacity: 0, scale: 0.97, y: 4 }}
             transition={{ type: "spring", bounce: 0, duration: 0.28 }}
             className={cn(
-              "material relative flex max-h-[min(88vh,720px)] w-full max-w-lg flex-col",
-              "overflow-hidden rounded-2xl border border-separator shadow-pop outline-none",
+              "material relative flex max-h-[min(92dvh,720px)] w-full max-w-lg flex-col",
+              "overflow-hidden rounded-t-2xl border border-separator shadow-pop outline-none sm:rounded-2xl",
             )}
           >
             <header className="flex shrink-0 items-center justify-between gap-2 border-b border-separator px-5 py-3.5">
@@ -111,18 +111,19 @@ export function SettingsPanel({
               </button>
             </header>
 
-            <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-5 py-5">
-              <section className="flex items-center justify-between gap-3">
+            <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-4 py-5 pb-safe sm:px-5">
+              <section className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <h3 className="text-[13px] font-semibold">Appearance</h3>
                   <p className="text-[11.5px] text-tertiary">System follows your device setting.</p>
                 </div>
-                <div className="flex shrink-0 gap-0.5 rounded-lg bg-fill p-0.5" role="group" aria-label="Theme">
+                <div className="flex shrink-0 gap-0.5 self-start rounded-lg bg-fill p-0.5 sm:self-auto" role="group" aria-label="Theme">
                   {themes.map(({ value, label, icon: Icon }) => (
                     <button
                       key={value}
                       type="button"
                       aria-pressed={theme === value}
+                      aria-label={label}
                       onClick={() => chooseTheme(value)}
                       className={cn(
                         "flex items-center gap-1.5 rounded-[7px] px-2.5 py-1 text-[12px] transition-colors",
@@ -132,7 +133,7 @@ export function SettingsPanel({
                       )}
                     >
                       <Icon className="h-3.5 w-3.5" aria-hidden />
-                      {label}
+                      <span className="hidden min-[420px]:inline">{label}</span>
                     </button>
                   ))}
                 </div>

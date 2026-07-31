@@ -34,7 +34,7 @@ export function AlbumDetail() {
   const discs = groupByDisc(tracks, album.discCount);
 
   const hero = (
-    <div className="flex flex-col gap-6 px-6 pt-16 pb-6 sm:flex-row sm:items-end">
+    <div className="flex flex-col gap-6 px-4 pt-14 pb-6 sm:flex-row sm:items-end sm:px-6 sm:pt-16">
       <Artwork
         artworkId={album.artworkId}
         size={1000}

@@ -23,8 +23,8 @@ export function PlayerBar({ onExpand, onToggleLyrics, onToggleQueue, lyricsOpen,
   const RepeatIcon = repeat === "one" ? Repeat1 : Repeat;
 
   return (
-    <footer className="material relative z-30 border-t border-separator">
-      <div className="mx-auto flex h-[72px] max-w-[1600px] items-center gap-2 px-3 sm:gap-3 sm:px-4">
+    <footer className="material relative z-30 border-t border-separator pb-safe">
+      <div className="mx-auto flex h-[68px] max-w-[1600px] items-center gap-1.5 px-2 sm:h-[72px] sm:gap-3 sm:px-4">
         {/* Left: transport + volume */}
         <div className="flex shrink-0 items-center gap-2">
           <div className="flex items-center gap-0.5">
@@ -72,7 +72,8 @@ export function PlayerBar({ onExpand, onToggleLyrics, onToggleQueue, lyricsOpen,
                 >
                   <div className="truncate text-[13px] leading-tight">{current.title}</div>
                   <div className="truncate text-[12px] leading-tight text-secondary">
-                    {current.artist} — {current.album}
+                    <span>{current.artist}</span>
+                    <span className="hidden min-[420px]:inline"> — {current.album}</span>
                   </div>
                 </button>
                 <Scrubber layout="inline" />
@@ -105,7 +106,13 @@ export function PlayerBar({ onExpand, onToggleLyrics, onToggleQueue, lyricsOpen,
               if (!lyricsOpen) onExpand();
             }}
           />
-          <IconButton label="Shuffle" active={shuffle} onClick={toggleShuffle} disabled={!current}>
+          <IconButton
+            label="Shuffle"
+            active={shuffle}
+            onClick={toggleShuffle}
+            disabled={!current}
+            className="hidden min-[480px]:grid"
+          >
             <Shuffle className="h-4 w-4" aria-hidden />
           </IconButton>
           <IconButton
@@ -113,6 +120,7 @@ export function PlayerBar({ onExpand, onToggleLyrics, onToggleQueue, lyricsOpen,
             active={repeat !== "off"}
             onClick={cycleRepeat}
             disabled={!current}
+            className="hidden min-[480px]:grid"
           >
             <RepeatIcon className="h-4 w-4" aria-hidden />
           </IconButton>

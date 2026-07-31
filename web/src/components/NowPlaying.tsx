@@ -33,6 +33,12 @@ function project(velocity: number, decelerationRate = 0.998): number {
 /** A non-overshooting layout curve keeps the large column swap visually stable. */
 const SWAP = { duration: 0.5, ease: [0.22, 1, 0.36, 1] } as const;
 
+/** Peek lyrics squash down under the controls instead of fading in place. */
+const PEEK_TUCK = { duration: 0.42, ease: [0.22, 1, 0.36, 1] } as const;
+
+/** Full lyrics wait for the peek row to collapse so the two do not collide. */
+const LYRICS_IN = { duration: 0.5, ease: [0.22, 1, 0.36, 1], delay: 0.14 } as const;
+
 export function NowPlaying({ open, lyricsOpen, onClose, onToggleLyrics, onShowQueue }: Props) {
   const { current, isPlaying, toggle, next, previous, shuffle, repeat, toggleShuffle, cycleRepeat } = usePlayer();
   const navigate = useNavigate();
@@ -79,7 +85,7 @@ export function NowPlaying({ open, lyricsOpen, onClose, onToggleLyrics, onShowQu
         >
           <NowPlayingBackdrop track={current} playing={isPlaying} />
 
-          <header className="flex items-center justify-between px-4 py-3">
+          <header className="flex items-center justify-between px-4 py-3 pt-safe sm:px-4">
             <IconButton label="Close Now Playing" onClick={onClose}>
               <ChevronDown className="h-5 w-5" aria-hidden />
             </IconButton>
@@ -96,7 +102,7 @@ export function NowPlaying({ open, lyricsOpen, onClose, onToggleLyrics, onShowQu
           </header>
 
           <div
-            className="np-stage min-h-0 flex-1 overflow-hidden px-6 pb-10"
+            className="np-stage min-h-0 flex-1 overflow-hidden px-4 pb-8 pb-safe sm:px-6 sm:pb-10"
             data-lyrics={showLyrics}
             data-peek={showPeek}
           >
@@ -130,12 +136,12 @@ export function NowPlaying({ open, lyricsOpen, onClose, onToggleLyrics, onShowQu
               {showPeek && (
                 <motion.div
                   key="lyrics-peek"
-                  layout
-                  className="np-peek flex w-full max-w-[26rem] shrink-0 items-center justify-center"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={SWAP}
+                  className="np-peek flex w-full max-w-[26rem] shrink-0 items-center justify-center overflow-hidden"
+                  style={{ transformOrigin: "50% 100%" }}
+                  initial={{ scaleY: 0, opacity: 0, y: 8 }}
+                  animate={{ scaleY: 1, opacity: 1, y: 0 }}
+                  exit={{ scaleY: 0, opacity: 0, y: 10 }}
+                  transition={PEEK_TUCK}
                 >
                   <LyricsPeek track={current} onOpen={onToggleLyrics} />
                 </motion.div>
@@ -148,8 +154,8 @@ export function NowPlaying({ open, lyricsOpen, onClose, onToggleLyrics, onShowQu
                   className="np-lyrics flex min-h-0 w-full"
                   initial={{ opacity: 0, x: 16 }}
                   animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 16 }}
-                  transition={SWAP}
+                  exit={{ opacity: 0, x: 16, transition: SWAP }}
+                  transition={{ layout: SWAP, opacity: LYRICS_IN, x: LYRICS_IN }}
                 >
                   <Lyrics track={current} className="min-h-0 w-full flex-1" />
                 </motion.div>

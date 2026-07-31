@@ -6,6 +6,7 @@ import { NowPlaying } from "@/components/NowPlaying";
 import { PlayerBar } from "@/components/PlayerBar";
 import { QueuePanel } from "@/components/QueuePanel";
 import { SettingsPanel } from "@/components/SettingsPanel";
+import { MobileNav, type MobileNavHandle } from "@/components/MobileNav";
 import { Sidebar } from "@/components/Sidebar";
 import { AlbumDetail } from "@/routes/AlbumDetail";
 import { Albums } from "@/routes/Albums";
@@ -57,8 +58,15 @@ function LibraryApp({ onLock }: { onLock(): void }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [lastfmRefresh, setLastfmRefresh] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
+  const mobileNavRef = useRef<MobileNavHandle>(null);
 
-  const focusSearch = useCallback(() => searchRef.current?.focus(), []);
+  const focusSearch = useCallback(() => {
+    if (window.matchMedia("(min-width: 640px)").matches) {
+      searchRef.current?.focus();
+    } else {
+      mobileNavRef.current?.focusSearch();
+    }
+  }, []);
   const openSettings = useCallback(() => setSettingsOpen(true), []);
   const afterLastfmAuth = useCallback(() => {
     setLastfmRefresh((value) => value + 1);
@@ -69,8 +77,10 @@ function LibraryApp({ onLock }: { onLock(): void }) {
   const lastfmAuthError = useLastfmAuthCallback(afterLastfmAuth);
 
   return (
-    <div className="grid h-full grid-rows-[minmax(0,1fr)_auto] bg-canvas">
-      <div className="grid min-h-0 grid-cols-[auto_minmax(0,1fr)_auto]">
+    <div className="grid h-full grid-rows-[auto_minmax(0,1fr)_auto] bg-canvas sm:grid-rows-[minmax(0,1fr)_auto]">
+      <MobileNav ref={mobileNavRef} onOpenSettings={openSettings} />
+
+      <div className="relative grid min-h-0 grid-cols-1 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
         <div className="hidden w-60 sm:block">
           <Sidebar ref={searchRef} onOpenSettings={openSettings} />
         </div>

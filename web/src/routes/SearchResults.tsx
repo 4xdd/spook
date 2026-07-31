@@ -31,7 +31,7 @@ export function SearchResults() {
           {data.artists.length > 0 && (
             <section>
               <h2 className="pb-3 text-[19px] font-bold">Artists</h2>
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(8rem,1fr))] gap-x-5 gap-y-6">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(7rem,1fr))] gap-x-4 gap-y-6 sm:grid-cols-[repeat(auto-fill,minmax(8rem,1fr))] sm:gap-x-5 sm:gap-y-6">
                 {data.artists.map((artist) => (
                   <Link
                     key={artist.id}

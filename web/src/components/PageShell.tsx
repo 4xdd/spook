@@ -40,20 +40,24 @@ export function PageShell({ title, subtitle, actions, children, hero, tint }: Pr
     <div className="relative flex h-full min-h-0 flex-col">
       <header
         className={cn(
-          "absolute inset-x-0 top-0 z-20 flex h-12 items-center gap-3 px-6 transition-colors duration-200",
+          "absolute inset-x-0 top-0 z-20 flex min-h-12 items-center gap-2 px-4 pt-safe transition-colors duration-200 sm:gap-3 sm:px-6",
           condensed ? "material border-b border-separator" : "border-b border-transparent",
         )}
       >
         <h2
           className={cn(
-            "truncate text-[15px] font-semibold transition-[opacity,transform] duration-200 ease-out",
+            "min-w-0 flex-1 truncate text-[15px] font-semibold transition-[opacity,transform] duration-200 ease-out",
             condensed ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0",
           )}
           aria-hidden={!condensed}
         >
           {title}
         </h2>
-        <div className="ml-auto flex items-center gap-2">{actions}</div>
+        {actions && (
+          <div className="ml-auto flex max-w-[min(100%,14rem)] shrink-0 items-center gap-2 overflow-x-auto no-scrollbar sm:max-w-none">
+            {actions}
+          </div>
+        )}
       </header>
 
       <div ref={scrollRef} className="scroll-edge min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
@@ -68,13 +72,13 @@ export function PageShell({ title, subtitle, actions, children, hero, tint }: Pr
         )}
 
         {hero ?? (
-          <div className="px-6 pt-16 pb-5">
-            <h1 className="text-[30px] font-bold">{title}</h1>
+          <div className="px-4 pt-14 pb-5 sm:px-6 sm:pt-16">
+            <h1 className="text-[26px] font-bold sm:text-[30px]">{title}</h1>
             {subtitle && <p className="mt-0.5 text-[14px] text-secondary">{subtitle}</p>}
           </div>
         )}
 
-        <div className="px-6 pb-10">{children}</div>
+        <div className="px-4 pb-10 sm:px-6">{children}</div>
       </div>
     </div>
   );

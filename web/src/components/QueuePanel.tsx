@@ -13,15 +13,31 @@ export function QueuePanel({ open, onClose }: { open: boolean; onClose(): void }
   return (
     <AnimatePresence>
       {open && (
-        <motion.aside
-          key="queue"
-          aria-label="Playing next"
-          initial={{ x: "100%" }}
-          animate={{ x: 0 }}
-          exit={{ x: "100%" }}
-          transition={{ type: "spring", bounce: 0, duration: 0.35 }}
-          className="material z-20 flex h-full w-80 shrink-0 flex-col border-l border-separator"
-        >
+        <>
+          <motion.button
+            key="queue-scrim"
+            type="button"
+            aria-label="Close queue"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            onClick={onClose}
+            className="fixed inset-0 z-30 bg-black/45 sm:hidden"
+          />
+
+          <motion.aside
+            key="queue"
+            aria-label="Playing next"
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", bounce: 0, duration: 0.35 }}
+            className={cn(
+              "material z-40 flex h-full flex-col border-separator",
+              "fixed inset-y-0 right-0 w-full max-w-sm sm:relative sm:z-20 sm:w-80 sm:max-w-none sm:shrink-0 sm:border-l",
+            )}
+          >
           <header className="flex items-center justify-between gap-2 px-4 py-3">
             <div className="min-w-0">
               <h2 className="text-[13px] font-semibold">Playing Next</h2>
@@ -94,7 +110,8 @@ export function QueuePanel({ open, onClose }: { open: boolean; onClose(): void }
               </p>
             )}
           </div>
-        </motion.aside>
+          </motion.aside>
+        </>
       )}
     </AnimatePresence>
   );
@@ -148,13 +165,13 @@ function QueueRow({ title, artist, artworkId, color, durationMs, active, playing
             event.stopPropagation();
             onRemove();
           }}
-          className="hidden h-6 w-6 shrink-0 place-items-center rounded-full text-tertiary hover:bg-fill-strong hover:text-content group-hover:grid"
+          className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-tertiary hover:bg-fill-strong hover:text-content max-sm:grid sm:hidden sm:group-hover:grid"
         >
           <X className="h-3.5 w-3.5" aria-hidden />
         </button>
       ) : null}
 
-      <span className="shrink-0 text-[11px] tabular-nums text-tertiary group-hover:hidden">
+      <span className="shrink-0 text-[11px] tabular-nums text-tertiary max-sm:hidden sm:group-hover:hidden">
         {formatDurationMs(durationMs)}
       </span>
     </div>
