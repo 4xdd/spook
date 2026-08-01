@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type AlbumSort, type DeezerSearchType, type TrackSort } from "./api";
+import { api, type AlbumSort, type DeezerSearchType, type Stats, type TrackSort } from "./api";
 
 export const keys = {
   stats: ["stats"] as const,
@@ -13,14 +13,23 @@ export const keys = {
   deezerStatus: ["deezer", "status"] as const,
   deezerSearch: (query: string, type: DeezerSearchType) => ["deezer", "search", type, query] as const,
   deezerJobs: ["deezer", "jobs"] as const,
+  recommendations: (seed: string[], exclude: string[], nonce: number) =>
+    ["recommendations", seed.join(","), exclude.join(","), nonce] as const,
 };
 
 export function useStats() {
   return useQuery({
     queryKey: keys.stats,
     queryFn: api.stats,
-    // Poll while a scan is running so progress and new content appear live.
-    refetchInterval: (query) => (query.state.data?.scan.state === "scanning" ? 1000 : false),
+    refetchInterval: (query) => {
+      const scan = query.state.data?.scan.state;
+      const embed = query.state.data?.embeddings?.state;
+      const pending = query.state.data?.embeddings?.pending ?? 0;
+      if (scan === "scanning" || embed === "running" || embed === "pending" || pending > 0) {
+        return 1000;
+      }
+      return false;
+    },
   });
 }
 
@@ -85,7 +94,32 @@ export function useStartScan() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: api.startScan,
-    onSuccess: () => client.invalidateQueries({ queryKey: keys.stats }),
+    onMutate: async () => {
+      await client.cancelQueries({ queryKey: keys.stats });
+      const previous = client.getQueryData<Stats>(keys.stats);
+      client.setQueryData<Stats>(keys.stats, (current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          scan: {
+            ...current.scan,
+            state: "scanning",
+            processed: 0,
+            total: current.tracks,
+            indexed: 0,
+            removed: 0,
+            error: undefined,
+          },
+        };
+      });
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        client.setQueryData(keys.stats, context.previous);
+      }
+    },
+    onSettled: () => client.invalidateQueries({ queryKey: keys.stats }),
   });
 }
 
@@ -130,5 +164,13 @@ export function useDeezerDownload() {
     onSuccess: () => {
       client.invalidateQueries({ queryKey: keys.deezerJobs });
     },
+  });
+}
+
+export function useRecommendations(seed: string[], exclude: string[], nonce: number) {
+  return useQuery({
+    queryKey: keys.recommendations(seed, exclude, nonce),
+    queryFn: () => api.recommendations({ seed, exclude, limit: 10, nonce }),
+    staleTime: 0,
   });
 }

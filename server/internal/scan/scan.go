@@ -51,6 +51,9 @@ type Scanner struct {
 	art    *artwork.Cache
 	prober *audio.Prober
 
+	// postScan hooks run after a successful library scan (e.g. embedding pass).
+	postScan []func(context.Context)
+
 	// A scan outlives the request that triggered it, so it runs under the
 	// scanner's own context rather than the caller's.
 	ctx    context.Context
@@ -73,6 +76,11 @@ func New(root string, st *store.Store, art *artwork.Cache, prober *audio.Prober)
 		cancel:   cancel,
 		progress: Progress{State: StateIdle},
 	}
+}
+
+// OnPostScan registers a callback invoked after each successful scan.
+func (s *Scanner) OnPostScan(fn func(context.Context)) {
+	s.postScan = append(s.postScan, fn)
 }
 
 func (s *Scanner) Progress() Progress {
@@ -212,6 +220,9 @@ func (s *Scanner) run(ctx context.Context) error {
 	}
 	if err := s.store.SetMeta(ctx, "root", s.root); err != nil {
 		return err
+	}
+	for _, fn := range s.postScan {
+		fn(ctx)
 	}
 	return s.store.Vacuum(ctx)
 }

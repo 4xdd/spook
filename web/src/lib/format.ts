@@ -24,6 +24,20 @@ export function formatRuntime(ms: number): string {
   return `${hours} hr ${rest} min`;
 }
 
+/** Short remaining-time label for progress indicators. */
+export function formatEtaRemaining(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) return "almost done";
+  if (seconds < 45) return `~${Math.max(1, Math.ceil(seconds))} sec left`;
+  if (seconds < 3600) {
+    const min = Math.max(1, Math.ceil(seconds / 60));
+    return `~${min} min left`;
+  }
+  const hours = Math.floor(seconds / 3600);
+  const min = Math.ceil((seconds % 3600) / 60);
+  if (min >= 60 || min === 0) return `~${hours + (min === 60 ? 1 : 0)} hr left`;
+  return `~${hours} hr ${min} min left`;
+}
+
 export function plural(count: number, singular: string, pluralForm = `${singular}s`): string {
   return `${count} ${count === 1 ? singular : pluralForm}`;
 }

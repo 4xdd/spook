@@ -15,16 +15,19 @@ LDFLAGS    = -s -w \
 
 RELEASE_DIR = dist/releases
 
-.PHONY: help build build-ui build-server run dev dev-server dev-ui test clean check-node check-port release package-release convert-mert
+.PHONY: help build build-ui build-server build-ort run dev dev-server dev-ui test clean check-node check-port release package-release convert-mert convert-mert-onnx install-ort
 
 help:
-	@echo "make build              Build the web UI and the server binary"
+	@echo "make build              Build the web UI and the server binary (ONNX Runtime if available)"
 	@echo "make run                Build everything, then serve MUSIC_DIR=$(MUSIC_DIR)"
 	@echo "make release            Cross-compile release binaries → $(RELEASE_DIR)/"
 	@echo "make package-release    Build release binaries and .tar.gz / .zip archives"
 	@echo "make dev                Run the Go server and the Vite dev server together"
 	@echo "make test               Run the Go test suite"
 	@echo "make convert-mert       Download and convert MERT-v1-95M to ~/.local/share/spook/models/"
+	@echo "make convert-mert-onnx  Export MERT to ONNX for ONNX Runtime (~10-30x faster inference)"
+	@echo "make install-ort        Download ONNX Runtime 1.26 shared library into ~/.local/share/spook/lib/"
+	@echo "make build-ort          Same as make build-server (CGO + ONNX when lib present)"
 	@echo "make clean              Remove build output"
 	@echo ""
 	@echo "Variables:"
@@ -37,7 +40,38 @@ build-ui: check-node
 	cd web && npm install --silent && npm run build
 
 build-server:
-	cd server && CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o ../bin/spook ./cmd/spook
+	cd server && CGO_ENABLED=1 go build -ldflags "$(LDFLAGS)" -o ../bin/spook ./cmd/spook
+
+# Alias — local Linux/macOS builds now include ONNX Runtime when CGO + lib are present.
+build-ort: build-server
+
+ORT_VERSION ?= 1.26.0
+ORT_DIR ?= $(HOME)/.local/share/spook/lib
+MERT_MODEL_DIR ?= $(HOME)/.local/share/spook/models
+
+install-ort:
+	@mkdir -p $(ORT_DIR)
+	@if [ ! -f $(ORT_DIR)/libonnxruntime.so ]; then \
+		tmp=$$(mktemp -d); \
+		curl -sL "https://github.com/microsoft/onnxruntime/releases/download/v$(ORT_VERSION)/onnxruntime-linux-x64-$(ORT_VERSION).tgz" | tar xz -C $$tmp; \
+		cp $$tmp/onnxruntime-linux-x64-$(ORT_VERSION)/lib/libonnxruntime.so* $(ORT_DIR)/; \
+		ln -sf libonnxruntime.so.$(ORT_VERSION) $(ORT_DIR)/libonnxruntime.so; \
+		rm -rf $$tmp; \
+		echo "ONNX Runtime $(ORT_VERSION) → $(ORT_DIR)"; \
+	else \
+		echo "ONNX Runtime already installed at $(ORT_DIR)"; \
+	fi
+
+convert-mert-onnx:
+	@mkdir -p /tmp/mert-work
+	@if [ ! -d /tmp/mert-work/venv-onnx ]; then python3 -m venv /tmp/mert-work/venv-onnx && /tmp/mert-work/venv-onnx/bin/pip install -q torch transformers onnx onnxscript huggingface_hub; fi
+	@if [ ! -f /tmp/mert-work/MERT-v1-95M/pytorch_model.bin ]; then \
+		/tmp/mert-work/venv-onnx/bin/python3 -c "from huggingface_hub import hf_hub_download; hf_hub_download('m-a-p/MERT-v1-95M','pytorch_model.bin',local_dir='/tmp/mert-work/MERT-v1-95M'); hf_hub_download('m-a-p/MERT-v1-95M','config.json',local_dir='/tmp/mert-work/MERT-v1-95M')"; \
+	fi
+	/tmp/mert-work/venv-onnx/bin/python3 scripts/export_mert_onnx.py \
+		--input /tmp/mert-work/MERT-v1-95M \
+		--output $(MERT_MODEL_DIR)/mert-v1-95m.onnx
+	@echo "ONNX model: $(MERT_MODEL_DIR)/mert-v1-95m.onnx (+ .onnx.data)"
 
 release: build-ui
 	@mkdir -p $(RELEASE_DIR)
@@ -112,7 +146,6 @@ test:
 	cd server && go test ./...
 
 # Requires python3 venv with torch + huggingface_hub (created on first run).
-MERT_MODEL_DIR ?= $(HOME)/.local/share/spook/models
 convert-mert:
 	@mkdir -p /tmp/mert-work
 	@if [ ! -d /tmp/mert-work/venv ]; then python3 -m venv /tmp/mert-work/venv && /tmp/mert-work/venv/bin/pip install -q torch huggingface_hub safetensors numpy; fi

@@ -1,25 +1,29 @@
 import { Play, Shuffle } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { PageShell } from "@/components/PageShell";
+import { PlaylistSuggestions } from "@/components/PlaylistSuggestions";
 import { EmptyState, ErrorState } from "@/components/States";
 import { TrackRow } from "@/components/TrackRow";
 import { entryToTrack } from "@/lib/playlists";
 import { formatRuntime, plural } from "@/lib/format";
 import { usePlaylists } from "@/player/PlaylistProvider";
 import { usePlayer } from "@/player/PlayerProvider";
+import type { Track } from "@/lib/api";
 
 export function PlaylistDetail() {
   const { id = "" } = useParams();
   const { playlistById } = usePlaylists();
   const { play, playShuffled } = usePlayer();
   const navigate = useNavigate();
+  const [nonce, setNonce] = useState(() => Date.now());
 
   const playlist = playlistById(id);
   const tracks = useMemo(
     () => (playlist ? playlist.entries.map(entryToTrack) : []),
     [playlist],
   );
+  const seedIds = useMemo(() => tracks.map((t) => t.id), [tracks]);
 
   if (!playlist) {
     return (
@@ -31,6 +35,12 @@ export function PlaylistDetail() {
 
   const context = { label: playlist.name, id: playlist.id };
   const durationMs = tracks.reduce((sum, t) => sum + t.durationMs, 0);
+  const excludeIds = seedIds;
+
+  function playSuggested(track: Track, suggested: Track[]) {
+    const idx = suggested.findIndex((t) => t.id === track.id);
+    play(suggested, idx >= 0 ? idx : 0, { label: "Recommended", id: `rec:${id}` });
+  }
 
   return (
     <PageShell
@@ -85,6 +95,15 @@ export function PlaylistDetail() {
           </div>
         </>
       )}
+
+      <PlaylistSuggestions
+        seedIds={seedIds}
+        excludeIds={excludeIds}
+        nonce={nonce}
+        onRefresh={() => setNonce(Date.now())}
+        onPlay={playSuggested}
+      />
+
       {playlist.system && (
         <div className="mt-8 flex justify-center">
           <button

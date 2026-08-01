@@ -92,3 +92,12 @@ CREATE VIRTUAL TABLE IF NOT EXISTS search_fts USING fts5(
   subtitle,
   tokenize = 'unicode61 remove_diacritics 2'
 );
+
+CREATE TABLE IF NOT EXISTS track_embeddings (
+  track_id  TEXT PRIMARY KEY REFERENCES tracks(id) ON DELETE CASCADE,
+  mod_time  INTEGER NOT NULL,
+  dim       INTEGER NOT NULL,
+  vector    BLOB NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS track_embeddings_mod_idx ON track_embeddings(mod_time);

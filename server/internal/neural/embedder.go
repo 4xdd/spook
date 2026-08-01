@@ -2,13 +2,12 @@ package neural
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
-	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sync"
+	"unsafe"
 )
 
 // Embedder loads MERT once and produces fixed-size audio embeddings for similarity search.
@@ -32,13 +31,18 @@ func OpenEmbedder(path string) (*Embedder, error) {
 
 func (e *Embedder) Model() *Model { return e.model }
 
-// EmbedFile decodes audio to mono float32 at the model sample rate and returns an embedding.
-func (e *Embedder) EmbedFile(ctx context.Context, audioPath string) ([]float32, error) {
-	wav, err := DecodeMono(ctx, audioPath, e.model.cfg.SampleRate)
+// EmbedFileClip decodes up to maxSeconds of audio and returns an embedding.
+func (e *Embedder) EmbedFileClip(ctx context.Context, audioPath string, maxSeconds float64) ([]float32, error) {
+	wav, err := DecodeMonoClip(ctx, audioPath, e.model.cfg.SampleRate, maxSeconds)
 	if err != nil {
 		return nil, err
 	}
 	return e.model.Embed(wav)
+}
+
+// EmbedFile decodes audio to mono float32 at the model sample rate and returns an embedding.
+func (e *Embedder) EmbedFile(ctx context.Context, audioPath string) ([]float32, error) {
+	return e.EmbedFileClip(ctx, audioPath, 0)
 }
 
 // EmbedWaveform embeds an already decoded mono PCM buffer.
@@ -75,6 +79,11 @@ var defaultDecoder ffmpegDecoder
 
 // DecodeMono reads audioPath and returns mono float32 samples at sampleRate Hz.
 func DecodeMono(ctx context.Context, audioPath string, sampleRate int) ([]float32, error) {
+	return DecodeMonoClip(ctx, audioPath, sampleRate, 0)
+}
+
+// DecodeMonoClip decodes at most maxSeconds of audio (0 = full file).
+func DecodeMonoClip(ctx context.Context, audioPath string, sampleRate int, maxSeconds float64) ([]float32, error) {
 	if !defaultDecoder.available() {
 		return nil, fmt.Errorf("ffmpeg is required to decode audio for MERT")
 	}
@@ -87,9 +96,11 @@ func DecodeMono(ctx context.Context, audioPath string, sampleRate int) ([]float3
 		"-i", audioPath,
 		"-ac", "1",
 		"-ar", fmt.Sprintf("%d", sampleRate),
-		"-f", "f32le",
-		"pipe:1",
 	}
+	if maxSeconds > 0 {
+		args = append(args, "-t", fmt.Sprintf("%.3f", maxSeconds))
+	}
+	args = append(args, "-f", "f32le", "pipe:1")
 	cmd := exec.CommandContext(ctx, defaultDecoder.path, args...)
 	out, err := cmd.Output()
 	if err != nil {
@@ -101,12 +112,17 @@ func DecodeMono(ctx context.Context, audioPath string, sampleRate int) ([]float3
 	if len(out)%4 != 0 {
 		return nil, fmt.Errorf("ffmpeg decode: corrupt f32le output")
 	}
+	return decodeF32LE(out)
+}
+
+func decodeF32LE(out []byte) ([]float32, error) {
 	n := len(out) / 4
-	samples := make([]float32, n)
-	for i := 0; i < n; i++ {
-		bits := binary.LittleEndian.Uint32(out[i*4:])
-		samples[i] = math.Float32frombits(bits)
+	if n == 0 {
+		return nil, nil
 	}
+	samples := make([]float32, n)
+	src := unsafe.Slice((*float32)(unsafe.Pointer(unsafe.SliceData(out))), n)
+	copy(samples, src)
 	return samples, nil
 }
 

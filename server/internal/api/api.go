@@ -12,9 +12,11 @@ import (
 	"github.com/spook/server/internal/artwork"
 	"github.com/spook/server/internal/audio"
 	"github.com/spook/server/internal/deezer"
+	"github.com/spook/server/internal/embed"
 	"github.com/spook/server/internal/httpx"
 	"github.com/spook/server/internal/lastfm"
 	"github.com/spook/server/internal/lyrics"
+	"github.com/spook/server/internal/recommend"
 	"github.com/spook/server/internal/scan"
 	"github.com/spook/server/internal/store"
 )
@@ -23,6 +25,8 @@ type Server struct {
 	Store     *store.Store
 	Art       *artwork.Cache
 	Scanner   *scan.Scanner
+	Embed     *embed.Worker
+	Recommend *recommend.Engine
 	Deezer    *deezer.Worker
 	Lyrics    *lyrics.Online
 	LastFM    *lastfm.Client
@@ -45,6 +49,7 @@ func (s *Server) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/art/{id}", s.art)
 	mux.HandleFunc("GET /api/v1/stream/{id}", s.stream)
 	mux.HandleFunc("HEAD /api/v1/stream/{id}", s.stream)
+	mux.HandleFunc("GET /api/v1/recommendations", s.recommendations)
 	mux.HandleFunc("GET /api/v1/scan", s.scanStatus)
 	mux.HandleFunc("POST /api/v1/scan", s.startScan)
 	mux.HandleFunc("GET /api/v1/deezer/status", s.deezerStatus)
@@ -73,6 +78,41 @@ func (s *Server) stats(w http.ResponseWriter, r *http.Request) {
 	lastScan, _ := s.Store.Meta(r.Context(), "last_scan")
 	parsed, _ := strconv.ParseInt(lastScan, 10, 64)
 
+	embCounts, _ := s.Store.EmbeddingCounts(r.Context())
+	var embStatus EmbeddingStatus
+	if s.Embed != nil {
+		p := s.Embed.Progress()
+		embStatus = EmbeddingStatus{
+			Enabled:        s.Embed.Enabled(),
+			State:          p.State,
+			Total:          embCounts.Tracks,
+			Embedded:       embCounts.Embedded,
+			Pending:        embCounts.Pending,
+			BatchTotal:     p.Total,
+			BatchProcessed: p.Processed,
+			BatchActive:    p.Active,
+			Workers:        s.Embed.Workers(),
+			Backend:        s.Embed.Backend(),
+			Error:          p.Error,
+		}
+		// Surface backlog when idle so the UI can show "waiting" before the next pass starts.
+		if embStatus.State == "idle" && embCounts.Pending > 0 && s.Embed.Enabled() && p.Error == "" {
+			embStatus.State = "pending"
+		}
+		// Kick off embedding when tracks are waiting and no pass is active.
+		if embCounts.Pending > 0 && s.Embed.Enabled() && p.State != "running" {
+			s.Embed.Schedule(context.Background())
+		}
+	} else {
+		embStatus = EmbeddingStatus{
+			Enabled:  false,
+			State:    "disabled",
+			Total:    embCounts.Tracks,
+			Embedded: embCounts.Embedded,
+			Pending:  embCounts.Pending,
+		}
+	}
+
 	httpx.WriteJSON(w, http.StatusOK, Stats{
 		Root:       s.Root,
 		Tracks:     counts.Tracks,
@@ -81,6 +121,7 @@ func (s *Server) stats(w http.ResponseWriter, r *http.Request) {
 		DurationMs: counts.DurationMS,
 		LastScan:   parsed,
 		Scan:       toScanStatus(s.Scanner.Progress()),
+		Embeddings: embStatus,
 	})
 }
 
@@ -255,6 +296,10 @@ func (s *Server) scanStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) startScan(w http.ResponseWriter, r *http.Request) {
+	if s.Embed != nil && s.Embed.Progress().State == "running" {
+		httpx.WriteJSON(w, http.StatusConflict, toScanStatus(s.Scanner.Progress()))
+		return
+	}
 	started := s.Scanner.Trigger()
 	status := http.StatusAccepted
 	if !started {

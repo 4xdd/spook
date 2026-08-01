@@ -20,9 +20,12 @@ import (
 	"github.com/spook/server/internal/auth"
 	"github.com/spook/server/internal/config"
 	"github.com/spook/server/internal/deezer"
+	"github.com/spook/server/internal/embed"
 	"github.com/spook/server/internal/httpx"
 	"github.com/spook/server/internal/lastfm"
 	"github.com/spook/server/internal/lyrics"
+	"github.com/spook/server/internal/neural"
+	"github.com/spook/server/internal/recommend"
 	"github.com/spook/server/internal/scan"
 	"github.com/spook/server/internal/store"
 	"github.com/spook/server/internal/version"
@@ -49,6 +52,41 @@ func main() {
 
 	scanner := scan.New(cfg.MusicDir, db, art, audio.NewProber(cfg.UseFFprobe))
 
+	recEngine := recommend.NewEngine(db, 768)
+	if err := recEngine.Reload(context.Background()); err != nil {
+		log.Printf("recommendations: load index: %v", err)
+	}
+
+	var embedPool neural.EmbedPool
+	modelPath := neural.DefaultModelPath(cfg.DataDir)
+	onnxPath := neural.DefaultONNXPath(cfg.DataDir)
+	if neural.ModelExists(modelPath) || neural.ONNXExists(onnxPath) {
+		workers := runtime.NumCPU()
+		if workers > 4 {
+			workers = 4
+		}
+		pool, err := neural.OpenEmbedPool(cfg.DataDir, workers)
+		if err != nil {
+			log.Printf("recommendations: open model: %v", err)
+		} else {
+			embedPool = pool
+			log.Printf("recommendations: MERT loaded (%s, %d workers, backend=%s)", modelPath, workers, pool.Backend())
+		}
+	} else {
+		log.Printf("recommendations: disabled until model exists at %s (make convert-mert)", modelPath)
+	}
+
+	reloadRecs := func() {
+		if err := recEngine.Reload(context.Background()); err != nil {
+			log.Printf("recommendations: reload: %v", err)
+		}
+	}
+	embedWorker := embed.NewWorker(db, embedPool, reloadRecs)
+	scanner.OnPostScan(func(context.Context) {
+		// Run after scan finishes so embedding never contends with scan DB writes.
+		embedWorker.Schedule(context.Background())
+	})
+
 	deezerWorker := deezer.NewWorker(deezer.Settings{
 		Enabled:   cfg.Deezer.Enabled,
 		ARL:       cfg.Deezer.ARL,
@@ -74,6 +112,8 @@ func main() {
 		Store:     db,
 		Art:       art,
 		Scanner:   scanner,
+		Embed:     embedWorker,
+		Recommend: recEngine,
 		Deezer:    deezerWorker,
 		Lyrics:    lyrics.NewOnline(cfg.Lyrics.Enabled, cfg.Lyrics.BaseURL),
 		LastFM:    lastfmClient,
@@ -127,6 +167,9 @@ func main() {
 		// The scan runs in the background so the UI is usable immediately,
 		// serving whatever the previous scan already indexed.
 		scanner.Trigger()
+	} else {
+		// No scan — kick off embedding for any tracks still waiting.
+		embedWorker.Schedule(context.Background())
 	}
 	if cfg.OpenBrowser {
 		go openBrowser(uiURL)

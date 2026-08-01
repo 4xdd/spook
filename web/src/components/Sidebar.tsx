@@ -6,6 +6,7 @@ import { plural } from "@/lib/format";
 import { useRefreshLibrary, useStartScan, useStats, useDeezerStatus } from "@/lib/queries";
 import { LIKED_PLAYLIST_ID } from "@/lib/playlists";
 import { usePlaylists } from "@/player/PlaylistProvider";
+import { SyncIndicator } from "./SyncIndicator";
 
 const links = [
   { to: "/", label: "Recently Added", icon: Clock, end: true },
@@ -30,7 +31,21 @@ export const Sidebar = forwardRef<HTMLInputElement, Props>(function Sidebar({ on
   const userPlaylists = playlists.filter((p) => !p.system);
 
   const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
+  const [syncRequested, setSyncRequested] = useState(false);
+
   const scanning = stats?.scan.state === "scanning";
+  const syncing =
+    scanning ||
+    stats?.embeddings.state === "running" ||
+    stats?.embeddings.state === "pending" ||
+    (stats?.embeddings.pending ?? 0) > 0;
+  const syncBusy = syncing || startScan.isPending || syncRequested;
+
+  useEffect(() => {
+    if (syncRequested && !syncing && !startScan.isPending) {
+      setSyncRequested(false);
+    }
+  }, [syncRequested, syncing, startScan.isPending]);
 
   // Leaving search clears the field so the sidebar matches the visible page.
   useEffect(() => {
@@ -169,9 +184,12 @@ export const Sidebar = forwardRef<HTMLInputElement, Props>(function Sidebar({ on
 
       <div className="mt-auto flex flex-col gap-1.5 px-2.5 text-[11px] text-tertiary">
         {stats && (
-          <span>
-            {plural(stats.albums, "album")} · {plural(stats.tracks, "song")}
-          </span>
+          <>
+            <SyncIndicator scan={stats.scan} embeddings={stats.embeddings} />
+            <span>
+              {plural(stats.albums, "album")} · {plural(stats.tracks, "song")}
+            </span>
+          </>
         )}
         <button
           type="button"
@@ -184,16 +202,25 @@ export const Sidebar = forwardRef<HTMLInputElement, Props>(function Sidebar({ on
         </button>
         <button
           type="button"
-          onClick={() => startScan.mutate()}
-          disabled={scanning}
-          className="flex items-center gap-1.5 self-start rounded-md py-0.5 transition-colors hover:text-secondary disabled:opacity-70"
+          onClick={() => {
+            if (syncBusy) return;
+            setSyncRequested(true);
+            startScan.mutate(undefined, {
+              onError: () => setSyncRequested(false),
+            });
+          }}
+          disabled={syncBusy}
+          className="flex items-center gap-1.5 self-start rounded-md py-0.5 transition-colors hover:text-secondary disabled:pointer-events-none disabled:opacity-70"
         >
           {scanning ? (
             <>
               <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
-              {stats?.scan.total
-                ? `Scanning ${Math.round((stats.scan.processed / stats.scan.total) * 100)}%`
-                : "Scanning…"}
+              Scanning library…
+            </>
+          ) : syncing ? (
+            <>
+              <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+              Sync in progress…
             </>
           ) : (
             <>

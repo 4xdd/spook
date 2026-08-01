@@ -101,6 +101,25 @@ export interface Stats {
   durationMs: number;
   lastScan?: number;
   scan: ScanStatus;
+  embeddings: EmbeddingStatus;
+}
+
+export interface EmbeddingStatus {
+  enabled: boolean;
+  state: "disabled" | "idle" | "pending" | "running" | string;
+  total: number;
+  embedded: number;
+  pending: number;
+  batchTotal?: number;
+  batchProcessed?: number;
+  batchActive?: number;
+  workers?: number;
+  backend?: string;
+  error?: string;
+}
+
+export interface Recommendations {
+  tracks: Track[];
 }
 
 export type AlbumSort = "title" | "artist" | "recent" | "year";
@@ -263,6 +282,14 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     }),
+  recommendations: (params: { seed: string[]; exclude: string[]; limit?: number; nonce?: number }) => {
+    const q = new URLSearchParams();
+    if (params.seed.length) q.set("seed", params.seed.join(","));
+    if (params.exclude.length) q.set("exclude", params.exclude.join(","));
+    q.set("limit", String(params.limit ?? 10));
+    if (params.nonce != null) q.set("nonce", String(params.nonce));
+    return request<Recommendations>(`/recommendations?${q}`);
+  },
 };
 
 /** Artwork URLs are content-addressed, so they can be cached forever. */

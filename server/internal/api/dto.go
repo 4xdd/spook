@@ -99,14 +99,33 @@ type ScanStatus struct {
 	Error      string `json:"error,omitempty"`
 }
 
+type EmbeddingStatus struct {
+	Enabled        bool   `json:"enabled"`
+	State          string `json:"state"`
+	Total          int    `json:"total"`
+	Embedded       int    `json:"embedded"`
+	Pending        int    `json:"pending"`
+	BatchTotal     int    `json:"batchTotal,omitempty"`
+	BatchProcessed int    `json:"batchProcessed,omitempty"`
+	BatchActive    int    `json:"batchActive,omitempty"`
+	Workers        int    `json:"workers,omitempty"`
+	Backend        string `json:"backend,omitempty"`
+	Error          string `json:"error,omitempty"`
+}
+
 type Stats struct {
-	Root       string     `json:"root"`
-	Tracks     int        `json:"tracks"`
-	Albums     int        `json:"albums"`
-	Artists    int        `json:"artists"`
-	DurationMs int64      `json:"durationMs"`
-	LastScan   int64      `json:"lastScan,omitempty"`
-	Scan       ScanStatus `json:"scan"`
+	Root       string          `json:"root"`
+	Tracks     int             `json:"tracks"`
+	Albums     int             `json:"albums"`
+	Artists    int             `json:"artists"`
+	DurationMs int64           `json:"durationMs"`
+	LastScan   int64           `json:"lastScan,omitempty"`
+	Scan       ScanStatus      `json:"scan"`
+	Embeddings EmbeddingStatus `json:"embeddings"`
+}
+
+type Recommendations struct {
+	Tracks []Track `json:"tracks"`
 }
 
 func toTrack(t store.Track) Track {

@@ -78,20 +78,32 @@ func layerNormOut(out, x, gamma, beta []float32, eps float64) {
 }
 
 func linearOut(out []float32, x []float32, weight *Tensor, bias []float32) {
-	// weight: [out, in], x: [in], out: [outFeatures]
 	outFeatures := weight.Dims[0]
 	inFeatures := weight.Dims[1]
 	for o := 0; o < outFeatures; o++ {
-		var sum float32
-		wBase := o * inFeatures
-		for i := 0; i < inFeatures; i++ {
-			sum += weight.Data[wBase+i] * x[i]
-		}
+		sum := dotProduct(weight.Data[o*inFeatures:(o+1)*inFeatures], x)
 		if bias != nil {
 			sum += bias[o]
 		}
 		out[o] = sum
 	}
+}
+
+func dotProduct(w, x []float32) float32 {
+	var sum float32
+	n := len(x)
+	i := 0
+	for ; i <= n-8; i += 8 {
+		sum += w[i]*x[i] + w[i+1]*x[i+1] + w[i+2]*x[i+2] + w[i+3]*x[i+3] +
+			w[i+4]*x[i+4] + w[i+5]*x[i+5] + w[i+6]*x[i+6] + w[i+7]*x[i+7]
+	}
+	for ; i <= n-4; i += 4 {
+		sum += w[i]*x[i] + w[i+1]*x[i+1] + w[i+2]*x[i+2] + w[i+3]*x[i+3]
+	}
+	for ; i < n; i++ {
+		sum += w[i] * x[i]
+	}
+	return sum
 }
 
 func linear2DOut(out []float32, x []float32, seqLen, inFeatures, outFeatures int, weight *Tensor, bias []float32) {

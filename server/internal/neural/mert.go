@@ -9,6 +9,7 @@ import (
 type Model struct {
 	cfg Config
 	w   *Weights
+	buf modelBuffers
 }
 
 func NewModel(w *Weights) (*Model, error) {
@@ -310,46 +311,47 @@ func (m *Model) selfAttention(out, hidden []float32, seqLen, dim int, prefix str
 		return err
 	}
 
-	q := make([]float32, seqLen*dim)
-	k := make([]float32, seqLen*dim)
-	v := make([]float32, seqLen*dim)
+	m.ensureBuf(seqLen, dim)
+	q := m.qBuf(seqLen, dim)
+	k := m.kBuf(seqLen, dim)
+	v := m.vBuf(seqLen, dim)
+	scores := m.scoresBuf(seqLen)
+
 	linear2DOut(q, hidden, seqLen, dim, dim, qW, qB.Data)
 	linear2DOut(k, hidden, seqLen, dim, dim, kW, kB.Data)
 	linear2DOut(v, hidden, seqLen, dim, dim, vW, vB.Data)
 
-	scores := make([]float32, seqLen)
-	attnCtx := make([]float32, headDim)
-
-	for t := 0; t < seqLen; t++ {
-		outBase := t * dim
-		for h := 0; h < heads; h++ {
-			qOff := t*dim + h*headDim
-			for d := 0; d < headDim; d++ {
-				attnCtx[d] = 0
-			}
+	for h := 0; h < heads; h++ {
+		base := h * headDim
+		for i := 0; i < seqLen; i++ {
+			qOff := i*dim + base
+			row := scores[i*seqLen : (i+1)*seqLen]
 			for j := 0; j < seqLen; j++ {
-				kOff := j*dim + h*headDim
+				kOff := j*dim + base
 				var dot float32
 				for d := 0; d < headDim; d++ {
 					dot += q[qOff+d] * k[kOff+d]
 				}
-				scores[j] = dot * scale
+				row[j] = dot * scale
 			}
-			softmaxRow(scores[:seqLen])
+			softmaxRow(row)
+		}
 
+		for i := 0; i < seqLen; i++ {
+			outOff := i*dim + base
+			row := scores[i*seqLen : (i+1)*seqLen]
 			for d := 0; d < headDim; d++ {
 				var sum float32
 				for j := 0; j < seqLen; j++ {
-					vOff := j*dim + h*headDim
-					sum += scores[j] * v[vOff+d]
+					vOff := j*dim + base
+					sum += row[j] * v[vOff+d]
 				}
-				attnCtx[d] = sum
+				out[outOff+d] = sum
 			}
-			copy(out[outBase+h*headDim:outBase+(h+1)*headDim], attnCtx)
 		}
 	}
 
-	merged := make([]float32, seqLen*dim)
+	merged := m.mergedBuf(seqLen, dim)
 	copy(merged, out)
 	linear2DOut(out, merged, seqLen, dim, dim, oW, oB.Data)
 	return nil
@@ -357,6 +359,7 @@ func (m *Model) selfAttention(out, hidden []float32, seqLen, dim int, prefix str
 
 func (m *Model) feedForward(out, hidden []float32, seqLen, dim int, prefix string) error {
 	inter := m.cfg.IntermediateSize
+	m.ensureBuf(seqLen, dim)
 	interW, err := requireTensor(m.w, prefix+".intermediate_dense.weight")
 	if err != nil {
 		return err
@@ -374,7 +377,7 @@ func (m *Model) feedForward(out, hidden []float32, seqLen, dim int, prefix strin
 		return err
 	}
 
-	tmp := make([]float32, seqLen*inter)
+	tmp := m.ffnBuf(seqLen)
 	linear2DOut(tmp, hidden, seqLen, dim, inter, interW, interB.Data)
 	geluSlice(tmp, tmp)
 	linear2DOut(out, tmp, seqLen, inter, dim, outW, outB.Data)
