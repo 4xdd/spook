@@ -4,9 +4,12 @@ import type { Track } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatDurationMs } from "@/lib/format";
 import { buildTrackMenuItems, usePlaylistMenuItems } from "@/hooks/usePlaylistMenuItems";
+import { LIKED_PLAYLIST_ID } from "@/lib/playlists";
+import { usePlaylists } from "@/player/PlaylistProvider";
 import { usePlayer } from "@/player/PlayerProvider";
 import { Artwork } from "./Artwork";
 import { ContextMenu, useContextMenu } from "./ContextMenu";
+import { LikeButton } from "./LikeButton";
 import { Menu } from "./Menu";
 import { NowPlayingBars } from "./NowPlayingBars";
 
@@ -21,9 +24,11 @@ interface Props {
 
 export function TrackRow({ track, onPlay, variant = "numbered", position, showAlbum }: Props) {
   const { current, isPlaying, playNext, playLater } = usePlayer();
+  const { isInPlaylist } = usePlaylists();
   const navigate = useNavigate();
   const contextMenu = useContextMenu();
   const playlistItems = usePlaylistMenuItems([track]);
+  const liked = isInPlaylist(LIKED_PLAYLIST_ID, track.id);
 
   const menuItems = buildTrackMenuItems({
     playNext: () => playNext([track]),
@@ -52,8 +57,8 @@ export function TrackRow({ track, onPlay, variant = "numbered", position, showAl
         className={cn(
           "group grid cursor-default select-none items-center gap-3 rounded-lg px-2.5 transition-colors duration-100",
           "hover:bg-fill active:bg-fill-strong",
-          variant === "numbered" ? "h-12 grid-cols-[2rem_1fr_auto_2rem]" : "h-14 grid-cols-[2.5rem_1fr_auto_2rem]",
-          showAlbum && "sm:grid-cols-[2.5rem_1fr_1fr_auto_2rem]",
+          variant === "numbered" ? "h-12 grid-cols-[2rem_1fr_auto_auto]" : "h-14 grid-cols-[2.5rem_1fr_auto_auto]",
+          showAlbum && "sm:grid-cols-[2.5rem_1fr_1fr_auto_auto]",
         )}
       >
         {variant === "numbered" ? (
@@ -104,10 +109,14 @@ export function TrackRow({ track, onPlay, variant = "numbered", position, showAl
         <div className="text-[13px] tabular-nums text-tertiary">{formatDurationMs(track.durationMs)}</div>
 
         <div
-          className="opacity-100 transition-opacity duration-150 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100"
+          className={cn(
+            "flex items-center gap-0.5 transition-opacity duration-150",
+            liked ? "opacity-100" : "opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100",
+          )}
           onClick={(event) => event.stopPropagation()}
           onContextMenu={(event) => event.stopPropagation()}
         >
+          <LikeButton track={track} size="sm" />
           <Menu label={`More options for ${track.title}`} items={menuItems}>
             <MoreHorizontal className="h-4 w-4" aria-hidden />
           </Menu>

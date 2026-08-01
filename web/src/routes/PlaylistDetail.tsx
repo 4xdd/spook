@@ -74,7 +74,7 @@ export function PlaylistDetail() {
           title={playlist.system ? "No liked songs yet" : "This playlist is empty"}
           description={
             playlist.system
-              ? "Tap + in Now Playing or use the menu on any song to add tracks here."
+              ? "Tap the heart in the player bar or on any song to add tracks here."
               : "Add songs from the track menu or right-click any album."
           }
         />

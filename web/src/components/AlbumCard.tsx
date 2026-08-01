@@ -74,24 +74,28 @@ export function AlbumCard({ album, tracks: tracksProp, showArtist = true, classN
 
   return (
     <>
-      <Link
-        to={`/albums/${album.id}`}
-        onMouseEnter={() => void loadTracks()}
-        onContextMenu={(event) => void openContextMenu(event)}
+      <div
         className={cn("group flex flex-col gap-2.5 outline-none", className)}
+        onMouseEnter={() => void loadTracks()}
       >
         <div className="relative">
-          <Artwork
-            artworkId={album.artworkId}
-            size={300}
-            alt={`${album.name} by ${album.artist}`}
-            color={album.color}
-            rounded="lg"
-            className={cn(
-              "aspect-square w-full shadow-art transition-transform duration-200 ease-out",
-              "group-hover:-translate-y-0.5 group-active:translate-y-0 group-active:scale-[0.985]",
-            )}
-          />
+          <Link
+            to={`/albums/${album.id}`}
+            onContextMenu={(event) => void openContextMenu(event)}
+            className="block outline-none"
+          >
+            <Artwork
+              artworkId={album.artworkId}
+              size={300}
+              alt={`${album.name} by ${album.artist}`}
+              color={album.color}
+              rounded="lg"
+              className={cn(
+                "aspect-square w-full shadow-art transition-transform duration-200 ease-out",
+                "group-hover:-translate-y-0.5 group-active:translate-y-0 group-active:scale-[0.985]",
+              )}
+            />
+          </Link>
           <div
             className={cn(
               "absolute right-2 bottom-2 transition-[opacity,transform] duration-200 ease-out",
@@ -108,7 +112,7 @@ export function AlbumCard({ album, tracks: tracksProp, showArtist = true, classN
           </div>
           <div
             className="absolute top-2 right-2 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
-            onClick={(event) => event.preventDefault()}
+            onClick={(event) => event.stopPropagation()}
             onContextMenu={(event) => event.stopPropagation()}
           >
             <Menu
@@ -125,7 +129,7 @@ export function AlbumCard({ album, tracks: tracksProp, showArtist = true, classN
           </div>
         </div>
 
-        <div className="min-w-0">
+        <Link to={`/albums/${album.id}`} className="min-w-0 outline-none">
           <div className="truncate text-[13px] leading-snug text-content group-hover:underline">{album.name}</div>
           {showArtist ? (
             <div className="truncate text-[13px] leading-snug text-secondary">{album.artist}</div>
@@ -138,8 +142,8 @@ export function AlbumCard({ album, tracks: tracksProp, showArtist = true, classN
               ) : null;
             })()
           )}
-        </div>
-      </Link>
+        </Link>
+      </div>
 
       <ContextMenu
         open={contextMenu.isOpen}

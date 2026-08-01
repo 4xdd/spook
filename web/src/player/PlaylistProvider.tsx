@@ -22,6 +22,7 @@ interface PlaylistValue {
   liked: Playlist;
   addTracks(playlistId: string, tracks: Track[]): void;
   addToLiked(tracks: Track | Track[]): void;
+  removeFromLiked(tracks: Track | Track[]): void;
   removeTrack(playlistId: string, trackId: string): void;
   createPlaylist(name: string): Playlist;
   isInPlaylist(playlistId: string, trackId: string): boolean;
@@ -72,6 +73,18 @@ export function PlaylistProvider({ children }: { children: ReactNode }) {
       addTracks(LIKED_PLAYLIST_ID, list);
     },
     [addTracks],
+  );
+
+  const removeFromLiked = useCallback(
+    (tracks: Track | Track[]) => {
+      const ids = new Set((Array.isArray(tracks) ? tracks : [tracks]).map((t) => t.id));
+      updatePlaylist(LIKED_PLAYLIST_ID, (p) => ({
+        ...p,
+        entries: p.entries.filter((e) => !ids.has(e.trackId)),
+        updatedAt: Date.now(),
+      }));
+    },
+    [updatePlaylist],
   );
 
   const removeTrack = useCallback(
@@ -127,12 +140,13 @@ export function PlaylistProvider({ children }: { children: ReactNode }) {
       liked,
       addTracks,
       addToLiked,
+      removeFromLiked,
       removeTrack,
       createPlaylist,
       isInPlaylist,
       playlistById,
     }),
-    [playlists, liked, addTracks, addToLiked, removeTrack, createPlaylist, isInPlaylist, playlistById],
+    [playlists, liked, addTracks, addToLiked, removeFromLiked, removeTrack, createPlaylist, isInPlaylist, playlistById],
   );
 
   return <PlaylistContext.Provider value={value}>{children}</PlaylistContext.Provider>;

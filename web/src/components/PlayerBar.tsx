@@ -3,6 +3,7 @@ import { cn } from "@/lib/cn";
 import { usePlayer } from "@/player/PlayerProvider";
 import { Artwork } from "./Artwork";
 import { IconButton } from "./IconButton";
+import { LikeButton } from "./LikeButton";
 import { LyricsButton } from "./LyricsButton";
 import { PlayButton } from "./PlayButton";
 import { Scrubber } from "./Scrubber";
@@ -115,6 +116,7 @@ export function PlayerBar({ onExpand, onToggleLyrics, onToggleQueue, lyricsOpen,
           >
             <Shuffle className="h-4 w-4" aria-hidden />
           </IconButton>
+          <LikeButton track={current} className="hidden min-[480px]:grid" />
           <IconButton
             label={repeat === "off" ? "Repeat off" : repeat === "all" ? "Repeat all" : "Repeat one"}
             active={repeat !== "off"}

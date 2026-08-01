@@ -6,7 +6,7 @@ import { LIKED_PLAYLIST_ID } from "@/lib/playlists";
 import { usePlaylists } from "@/player/PlaylistProvider";
 
 export function usePlaylistMenuItems(tracks: Track[]): MenuItem[] {
-  const { playlists, addTracks, addToLiked, isInPlaylist, createPlaylist } = usePlaylists();
+  const { playlists, addTracks, addToLiked, removeFromLiked, isInPlaylist, createPlaylist } = usePlaylists();
 
   return useMemo(() => {
     const single = tracks.length === 1 ? tracks[0] : null;
@@ -36,10 +36,9 @@ export function usePlaylistMenuItems(tracks: Track[]): MenuItem[] {
 
     return [
       {
-        label: inLiked ? "In Liked" : "Add to Liked",
+        label: inLiked ? "Remove from Liked" : "Add to Liked",
         icon: <Heart className="h-4 w-4" fill={inLiked ? "currentColor" : "none"} aria-hidden />,
-        disabled: inLiked,
-        onSelect: () => addToLiked(tracks),
+        onSelect: () => (inLiked && single ? removeFromLiked(single) : addToLiked(tracks)),
       },
       {
         label: addLabel,
@@ -47,7 +46,7 @@ export function usePlaylistMenuItems(tracks: Track[]): MenuItem[] {
         children: playlistChildren,
       },
     ];
-  }, [tracks, playlists, addTracks, addToLiked, isInPlaylist, createPlaylist]);
+  }, [tracks, playlists, addTracks, addToLiked, removeFromLiked, isInPlaylist, createPlaylist]);
 }
 
 export function buildTrackMenuItems(
